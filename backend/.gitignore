@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+env/
+*.log
+.DS_Store
+coverage/
+.prisma/
+scripts/migration/firestore-export/
+tunnel.js.log

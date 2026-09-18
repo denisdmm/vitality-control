@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────
+
+enum Role {
+  PACIENTE
+  MEDICO
+  ADMINISTRADOR
+}
+
+enum HealthRecordStatus {
+  SOLICITADO
+  AGENDADO
+  REALIZADO
+}
+
+// ─────────────────────────────────────────────
+// Usuários — origem: users/accounts/{id}
+// ─────────────────────────────────────────────
+
+model User {
+  id                  String   @id @default(uuid())
+  name                String   @unique
+  passwordHash        String   @map("password_hash")
+  fullName            String   @map("full_name")
+  socialName          String?  @map("social_name")
+  email               String?
+  medicalRecordNumber String?  @map("medical_record_number")
+  crm                 String?  @unique
+  photoUrl            String?  @map("photo_url")
+  role                Role     @default(PACIENTE)
+  height              Float?
+  inactivityTimeout   Int?     @map("inactivity_timeout")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  patientLinks   PatientDoctor[] @relation("patient")
+  doctorLinks    PatientDoctor[] @relation("doctor")
+  healthRecords  HealthRecord[]
+  medications    Medication[]
+  vaccines       Vaccine[]
+  vitals         VitalScore[]
+
+  @@map("users")
+}
+
+// N:N paciente↔médico — origem: users.accounts.{id}.doctorIds[]
+model PatientDoctor {
+  id        String @id @default(uuid())
+  patientId String @map("patient_id")
+  doctorId  String @map("doctor_id")
+  patient   User   @relation("patient", fields: [patientId], references: [id], onDelete: Cascade)
+  doctor    User   @relation("doctor", fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@unique([patientId, doctorId])
+  @@index([doctorId])
+  @@map("patient_doctors")
+}
+
+model HealthRecord {
+  id                   String             @id @default(uuid())
+  userId               String             @map("user_id")
+  name                 String
+  type                 String
+  requestDate          DateTime           @map("request_date") @db.Timestamptz
+  examDate             DateTime?          @map("exam_date") @db.Timestamptz
+  result               String?
+  status               HealthRecordStatus @default(SOLICITADO)
+  requestingDoctorName String?            @map("requesting_doctor_name")
+  requestingDoctorCrm  String?            @map("requesting_doctor_crm")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subItems SubItem[]
+
+  @@index([userId])
+  @@map("health_records")
+}
+
+model SubItem {
+  id        String @id @default(uuid())
+  recordId  String @map("record_id")
+  name      String
+  result    String
+  reference String
+
+  record HealthRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  @@index([recordId])
+  @@map("sub_items")
+}
+
+// ADR-003: biometria diária unificada; períodos manhã/tarde/noite em JSONB
+// origem: data/bloodPressure, data/glucose e data/weight
+model VitalScore {
+  id                   String    @id @default(uuid())
+  userId               String    @map("user_id")
+  date                 DateTime  @db.Date
+  bloodPressurePeriods Json?      @map("blood_pressure_periods")
+  glucosePeriods       Json?      @map("glucose_periods")
+  weight               Float?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([date])
+  @@map("vital_scores")
+}
+
+// origem: {uid}/medications — inconsistência de path do legado resolvida p/ FK
+model Medication {
+  id        String @id @default(uuid())
+  userId    String @map("user_id")
+  name      String
+  dosage    String
+  frequency String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("medications")
+}
+
+// origem: {uid}/vaccines
+model Vaccine {
+  id                          String   @id @default(uuid())
+  userId                      String   @map("user_id")
+  vaccineName                 String   @map("vaccine_name")
+  vaccinationDate             DateTime @map("vaccination_date") @db.Timestamptz
+  seriesSchedule              String?  @map("series_schedule")
+  intervalBetweenDoses        Int?     @map("interval_between_doses")
+  intervalBetweenBoosterDoses Int?     @map("interval_between_booster_doses")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("vaccines")
+}
+
+// origem: sharedData/exams/{slug}
+model ExamType {
+  id    String @id @default(uuid())
+  label String @unique
+
+  @@map("exam_types")
+}
+
+// ADR-004: sharedData (singleton) com colunas tipadas
+// origem: sharedData.healthIndices
+model SharedData {
+  id                   Int  @id @default(1)
+  bpSystolic           Int? @map("bp_systolic")
+  bpDiastolic          Int? @map("bp_diastolic")
+  bpSystolicIdeal      Int? @map("bp_systolic_ideal")
+  bpDiastolicIdeal     Int? @map("bp_diastolic_ideal")
+  bpSystolicLimit      Int? @map("bp_systolic_limit")
+  bpDiastolicLimit     Int? @map("bp_diastolic_limit")
+  glucosePreLimit      Int? @map("glucose_pre_limit")
+  glucoseDiabetesLimit Int? @map("glucose_diabetes_limit")
+
+  @@map("shared_data")
+}

@@ -1,0 +1,72 @@
+<div class="flex h-dvh">
+  <!-- Sidebar -->
+  <aside class="hidden w-60 shrink-0 border-r bg-sidebar text-sidebar-foreground md:flex md:flex-col">
+    <div class="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
+      <svg
+        class="h-8 w-8 text-sidebar-primary"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+        <path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27" />
+      </svg>
+      <span class="text-sm font-semibold leading-tight">Central de Vitalidade</span>
+    </div>
+
+    <nav class="flex-1 space-y-1 overflow-y-auto p-3">
+      @for (item of visibleMenu(); track item.path) {
+        <a
+          [routerLink]="item.path"
+          routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+          [routerLinkActiveOptions]="{ exact: item.exact === true }"
+          class="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        >
+          {{ item.title }}
+        </a>
+      }
+    </nav>
+
+    <div class="border-t border-sidebar-border p-3">
+      <div class="flex items-center gap-3 rounded-md px-2 py-2">
+        <div
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-xs font-semibold text-sidebar-primary-foreground"
+        >
+          {{ (user()?.fullName || user()?.name || '?').charAt(0).toUpperCase() }}
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-sm font-medium">{{ user()?.fullName }}</p>
+          <p class="truncate text-xs text-sidebar-foreground/60">{{ user()?.role }}</p>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="flex min-w-0 flex-1 flex-col">
+    <!-- Header -->
+    <header class="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-card px-6">
+      <h1 class="flex-1 truncate text-lg font-semibold tracking-tight">{{ pageTitle() }}</h1>
+
+      @if (isPatient()) {
+        <app-health-entry-modal />
+      }
+
+      <button
+        type="button"
+        (click)="logout()"
+        class="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+      >
+        Sair
+      </button>
+    </header>
+
+    <!-- Content -->
+    <main class="flex-1 overflow-y-auto p-6">
+      <router-outlet />
+    </main>
+  </div>
+</div>
