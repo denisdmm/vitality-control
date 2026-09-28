@@ -53,7 +53,7 @@
 
 ## 6. Verificação de integração
 
-- [ ] 6.1 Rodar `npm run build -w backend` e `npm run build -w frontend` e confirmar que ambos terminam sem erro
-- [ ] 6.2 Percorrer no Swagger o fluxo completo: paciente cria receita com PDF, baixa o PDF, adiciona medicamento e horários; médico vinculado cria receita e medicamento prescrito; paciente recebe 403 ao tentar alterar o medicamento prescrito; listagem de ativos reflete receita encerrada
-- [ ] 6.3 Conferir no dev server (`http://localhost:4300`) o fluxo do paciente e do médico, o download do PDF abrindo com o nome escolhido no upload e a atualização do dashboard após editar horários
-- [ ] 6.4 Verificar que nenhum endpoint devolve `fileStoredName` ou caminho de diretório e que `GET /api/v1/medications/active` não retorna medicamentos de receita encerrada
+- [x] 6.1 Rodar `npm run build -w backend` e `npm run build -w frontend` e confirmar que ambos terminam sem erro
+- [x] 6.2 Percorrer no Swagger o fluxo completo: paciente cria receita com PDF, baixa o PDF, adiciona medicamento e horários; médico vinculado cria receita e medicamento prescrito; paciente recebe 403 ao tentar alterar o medicamento prescrito; listagem de ativos reflete receita encerrada
+- [x] 6.3 Conferir no dev server (`http://localhost:4300`) o fluxo do paciente e do médico, o download do PDF abrindo com o nome escolhido no upload e a atualização do dashboard após editar horários
+- [x] 6.4 Verificar que nenhum endpoint devolve `fileStoredName` ou caminho de diretório e que `GET /api/v1/medications/active` não retorna medicamentos de receita encerrada

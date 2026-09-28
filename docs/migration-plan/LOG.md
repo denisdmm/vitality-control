@@ -330,7 +330,7 @@ cd /vitality-control/frontend && npm run build
 ## Sessão 2 — Receituário (change OpenSpec `prescription-book`)
 
 **Data:** 28/09/2026
-**Estado:** em andamento
+**Estado:** concluída (37/37 tasks)
 
 ### Pontos de volta registrados (antes de qualquer mudança destrutiva)
 - Branch de trabalho: `feature/prescription-book` (baseline em `develop`, HEAD `e43c86b`).
@@ -377,6 +377,45 @@ cd /vitality-control/frontend && npm run build
   - `medication_schedules` — `time` como `String` "HH:mm" (horário de parede, sem
     data; ordenação lexicográfica = cronológica) com
     `@@unique([medicationId, time])` como garantia no banco.
+
+### Complemento: grupos 2 a 6 (backend, frontend e validação)
+- Grupos 2 e 3 (backend) foram commitados juntos em `efa272d`, com tag
+  `rx-grupo-3`; o grupo 4 e 5 (frontend) em `d0b1c52`, com tag `rx-grupo-5`.
+  Não existe tag `rx-grupo-2`: o tag do grupo 3 cobre os dois.
+- `PatientAccessService` (módulo global `CommonModule`) concentra a regra de
+  vínculo médico/paciente, reaproveitada por `VitalsService.pressureForPatient`.
+- Uploads: `multer` em disco, PDF obrigatório, 10 MB, MIME + extensão `.pdf`,
+  nome interno UUID; `file_stored_name` e caminho interno nunca saem da API
+  (conferido em todos os endpoints de leitura) e o download exige Bearer token.
+- Frontend: `PrescriptionsService` com signals (`prescriptions`,
+  `activeMedications`, `loading`, `error`) e `reload()`, o que permite ao widget
+  do dashboard refletir a edição de horários sem recarregar a página. O download
+  usa `HttpClient` com `responseType: 'blob'`, já que o endpoint exige token.
+- Widget `active-medications` substitui `medication-tracker` (removido) e mostra
+  nome, dosagem, frequência e horários ordenados, com estado vazio orientando a
+  registrar receita. Telas: `pages/receituario` (paciente) e
+  `pages/medico/receituario` (seletor de paciente reaproveitado do padrão de
+  pressão arterial). Rota antiga `/medicamentos` virou redirect para
+  `/receituario`; o menu deixou de ter a entrada "Medicamentos".
+- Validação: `npm run build -w backend` e `npm run build -w frontend` limpos;
+  fluxos exercitados via `curl` no backend e através do proxy `:4300`. Revisados
+  o download pelo paciente, o 403 em edição/exclusão de item prescrito, o
+  paciente adicionando horário em item prescrito, o filtro de ativos ignorando
+  receita `ENCERRADA` e a ausência de "medicamento sem horário" no widget.
+- Dados de teste removidos do ambiente: 7 receitas, 3 arquivos em
+  `backend/uploads/receitas`, os usuários `test-medico` / `test-paciente` /
+  `test-paciente2` e os 2 vínculos criados para os testes. As 4
+  `prescriptions` do dump anterior eram apenas os 4 medicamentos legados já
+  descartados, então não há receita real a preservar.
+
+### Bloqueios
+- Nenhum.
+
+### Próximos passos
+- [ ] `npm run prisma:deploy` no ambiente de produção e carga inicial opcional.
+- [ ] Reavaliar o `LOG.md` quando houver dados reais de prescrição.
+
+---
 
 ---
 
