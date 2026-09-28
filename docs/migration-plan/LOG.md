@@ -327,6 +327,59 @@ cd /vitality-control/frontend && npm run build
 
 ---
 
+## Sessão 2 — Receituário (change OpenSpec `prescription-book`)
+
+**Data:** 28/09/2026
+**Estado:** em andamento
+
+### Pontos de volta registrados (antes de qualquer mudança destrutiva)
+- Branch de trabalho: `feature/prescription-book` (baseline em `develop`, HEAD `e43c86b`).
+- Tag do baseline: `rx-pre-prescription-book`.
+- Dump do banco de dev (Neon, via túnel local `127.0.0.1:5433`):
+  `~/backups/vitality-control-antes-rx-20260928-183928.sql` (94 KB, 19 tabelas,
+  inclui as 4 linhas de `public.medications`).
+- `pg_dump` 18.6 instalado via PGDG — o client 15 do Debian 12 é recusado pelo
+  servidor 18.6 ("server version mismatch").
+- Script reverso da migration: `~/backups/rx-rollback.sql` (gerado com
+  `prisma migrate diff` entre o banco e o novo datamodel).
+- Convenção: uma tag `rx-grupo-<n>` ao fim de cada grupo de tarefas (0 a 6).
+
+### Estado do banco antes da migration
+- Tabelas em `public`: `users`, `patient_doctors`, `health_records`, `sub_items`,
+  `medications`, `vaccines`, `exam_types`, `shared_data`, `vital_scores`.
+- `medications` tem 4 linhas (Levotiroxina, Ciprofibrato, Enalapril, Artovastatina)
+  do usuário `5xPUEqvUp5vpU2AZ4339` — serão descartadas por decisão de produto.
+- `public._prisma_migrations` existe e contém `20260915191853_init` e
+  `20260915192138_preserve_legacy_ids_text`, ambas finalizadas. Portanto a
+  migration nova é incremental (`rx_prescription_book`), e não um baseline.
+- O papel `neondb_owner` não tem `public` no `search_path`: consultas por `psql`
+  precisam de `public.<tabela>` qualificado, senão o erro é enganoso
+  ("relation does not exist").
+
+### Sessão 2 — grupo 1: modelo de dados aplicado
+
+- Migration `20260928195322_rx_prescription_book` aplicada com `migrate deploy`
+  (dump conferido antes; `migrate status` reporta "Database schema is up to date").
+- **Dados descartados:** as 4 linhas de `medications` (Levotiroxina, Ciprofibrato,
+  Enalapril, Artovastatina) do usuário `5xPUEqvUp5vpU2AZ4339`. Decisão de produto,
+  não limitação técnica — o backfill exigiria inventar uma receita fictícia sem PDF.
+- O SQL gerado por `prisma migrate dev` foi reescrito antes de aplicar: ele tentava
+  `ADD COLUMN prescription_id TEXT NOT NULL` em tabela com dados, o que é
+  inaplicável. A versão final faz `DROP TABLE medications` + recria as três
+  tabelas na ordem das dependências.
+- Novo modelo:
+  - `prescriptions` — 1 PDF por receita (`file_stored_name` / `file_display_name` /
+    `file_mime_type` / `file_size`), `patient_id`, `doctor_id` (nulo quando o
+    paciente registra), `uploaded_by_id`, `status` (`ATIVA | ENCERRADA`).
+  - `medications` — `prescription_id` obrigatório, `continuous_use` (uso contínuo
+    fica no item, não no documento) e `prescribed_by_id` (nulo = lançado pelo
+    próprio paciente, é o que trava a edição pelo paciente).
+  - `medication_schedules` — `time` como `String` "HH:mm" (horário de parede, sem
+    data; ordenação lexicográfica = cronológica) com
+    `@@unique([medicationId, time])` como garantia no banco.
+
+---
+
 ## Modelo de entrada para a próxima sessão
 
 ```
