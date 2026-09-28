@@ -7,7 +7,7 @@
 - [x] 0.3 Fazer dump do banco de desenvolvimento **antes** da migration destrutiva: com `node backend/tunnel.js` em um terminal e `pg_dump "$DATABASE_URL" > ~/backups/vitality-control-antes-rx-<data>.sql` em outro, conferindo que o arquivo existe, não está vazio e contém a tabela `medications` com dados; confirmar que `pg_dump` está disponível (`pg_dump --version`)
 - [x] 0.4 Gerar também o SQL reverso da migration como segunda rede, **depois** de editar o schema em 1.1 (antes de 1.3), com `npx prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --script > ~/backups/rx-rollback.sql` executado em `backend/`; conferir que o script foi gerado e contém o `DROP TABLE` das tabelas novas
 - [x] 0.5 Registrar em `docs/migration-plan/LOG.md` o caminho do dump e da tag do baseline, para que a retomada de sessão saiba de onde voltar
-- [ ] 0.6 Ao final de cada grupo (1 a 6), fechar com um commit e uma tag (`git tag rx-grupo-<n>`), de modo que qualquer grupo possa ser revertido isoladamente; verificar com `git log --oneline` e `git tag`
+- [x] 0.6 Ao final de cada grupo (1 a 6), fechar com um commit e uma tag (`git tag rx-grupo-<n>`), de modo que qualquer grupo possa ser revertido isoladamente; verificar com `git log --oneline` e `git tag`
 
 ## 1. Modelo de dados e migration
 
@@ -18,23 +18,23 @@
 
 ## 2. Autorização compartilhada de paciente
 
-- [ ] 2.1 Criar em `backend/src/common/` o helper que verifica acesso de médico a paciente a partir de `PatientDoctor` (liberando `ADMINISTRADOR`), na mesma forma de `pressureForPatient`
-- [ ] 2.2 Refatorar `VitalsService.pressureForPatient` para usar o helper, preservando as mensagens de erro existentes (`Paciente não encontrado`, `Paciente não vinculado a este médico`) e verificar com `npm run build -w backend` e uma chamada a `GET /api/v1/vitals/pressure/:patientId` no Swagger com médico vinculado e não vinculado
+- [x] 2.1 Criar em `backend/src/common/` o helper que verifica acesso de médico a paciente a partir de `PatientDoctor` (liberando `ADMINISTRADOR`), na mesma forma de `pressureForPatient`
+- [x] 2.2 Refatorar `VitalsService.pressureForPatient` para usar o helper, preservando as mensagens de erro existentes (`Paciente não encontrado`, `Paciente não vinculado a este médico`) e verificar com `npm run build -w backend` e uma chamada a `GET /api/v1/vitals/pressure/:patientId` no Swagger com médico vinculado e não vinculado
 
 ## 3. Módulo de receitas no backend
 
-- [ ] 3.1 Criar `backend/src/prescriptions/dto/` com os DTOs de criação (multipart: nome de exibição, data de emissão), status e listagem por `status`, com validação de `class-validator` e decorators de Swagger
-- [ ] 3.2 Implementar o serviço de arquivo em `backend/src/prescriptions/`: resolução de `UPLOADS_DIR` (default `uploads` sob o `cwd` do backend), criação do diretório no bootstrap, gravação em `receitas/<randomUUID().pdf>` e sanitização do nome de exibição (sem barras, sem `..`, tamanho limitado); verificar gravando um arquivo de teste e confirmando que o nome em disco é um UUID e que o diretório é criado quando ausente
-- [ ] 3.3 Implementar `POST /api/v1/prescriptions` (multipart, PDF obrigatório) e `POST /api/v1/patients/:patientId/prescriptions` para `MEDICO`/`ADMINISTRADOR`, validando vínculo, tipo PDF e limite de tamanho, com remoção do arquivo órfão quando a escrita no banco falhar; verificar no Swagger: criação sem arquivo, com arquivo não PDF e com PDF válido
-- [ ] 3.4 Implementar `GET /api/v1/prescriptions` (com filtro opcional por status, somente as próprias) e `GET /api/v1/patients/:patientId/prescriptions` com os medicamentos, marcação de uso contínuo e horários inclusos, ordenadas da mais recente para a mais antiga
-- [ ] 3.5 Implementar `GET /api/v1/prescriptions/:id` validando posse ou vínculo, respondendo 404 para receita de outro paciente
-- [ ] 3.6 Implementar `GET /api/v1/prescriptions/:id/file` com `Content-Disposition` em `filename*` (RFC 5987) usando o nome de exibição, validando posse/vínculo e respondendo com mensagem de "sem arquivo" quando não houver PDF; verificar no Swagger o download com paciente dono, médico vinculado e médico sem vínculo
-- [ ] 3.7 Implementar `PATCH /api/v1/prescriptions/:id/status` (encerrar/reabrir) e `DELETE /api/v1/prescriptions/:id` com remoção do arquivo em disco, restritos ao paciente dono ou médico emissor
-- [ ] 3.8 Implementar `POST /api/v1/prescriptions/:id/medications`, `PATCH /api/v1/medications/:id` e `DELETE /api/v1/medications/:id` exigindo receita válida, gravando `prescribedById` quando a criação vier de médico e recusando com 403 edição/exclusão de item prescrito pelo próprio paciente; verificar no Swagger os quatro casos (criação por médico, edição bloqueada do paciente, edição liberada do item próprio, vínculo inválido)
-- [ ] 3.9 Implementar `POST /api/v1/medications/:id/schedules` e `DELETE /api/v1/medication-schedules/:id` restritos ao paciente dono do medicamento, com validação de `HH:mm`, rejeição de duplicidade e ordenação crescente na resposta; verificar tentando adicionar horário inválido, duplicado e válido
-- [ ] 3.10 Implementar `GET /api/v1/medications/active` (declaração de rota antes de qualquer `:id`) e `GET /api/v1/patients/:patientId/medications/active`, ambos filtrando `status: ATIVA` e `continuousUse: true`, com nome, dosagem, frequência e horários
-- [ ] 3.11 Registrar `PrescriptionsModule` em `app.module.ts`, remover o controller antigo de `medications` e validar que o Swagger em `http://localhost:5000/api` lista os novos endpoints com o prefixo `/api/v1`
-- [ ] 3.12 Adicionar `backend/uploads/` ao `.gitignore` e confirmar que `git status` não mostra o PDF de teste criado na tarefa 3.2
+- [x] 3.1 Criar `backend/src/prescriptions/dto/` com os DTOs de criação (multipart: nome de exibição, data de emissão), status e listagem por `status`, com validação de `class-validator` e decorators de Swagger
+- [x] 3.2 Implementar o serviço de arquivo em `backend/src/prescriptions/`: resolução de `UPLOADS_DIR` (default `uploads` sob o `cwd` do backend), criação do diretório no bootstrap, gravação em `receitas/<randomUUID().pdf>` e sanitização do nome de exibição (sem barras, sem `..`, tamanho limitado); verificar gravando um arquivo de teste e confirmando que o nome em disco é um UUID e que o diretório é criado quando ausente
+- [x] 3.3 Implementar `POST /api/v1/prescriptions` (multipart, PDF obrigatório) e `POST /api/v1/patients/:patientId/prescriptions` para `MEDICO`/`ADMINISTRADOR`, validando vínculo, tipo PDF e limite de tamanho, com remoção do arquivo órfão quando a escrita no banco falhar; verificar no Swagger: criação sem arquivo, com arquivo não PDF e com PDF válido
+- [x] 3.4 Implementar `GET /api/v1/prescriptions` (com filtro opcional por status, somente as próprias) e `GET /api/v1/patients/:patientId/prescriptions` com os medicamentos, marcação de uso contínuo e horários inclusos, ordenadas da mais recente para a mais antiga
+- [x] 3.5 Implementar `GET /api/v1/prescriptions/:id` validando posse ou vínculo, respondendo 404 para receita de outro paciente
+- [x] 3.6 Implementar `GET /api/v1/prescriptions/:id/file` com `Content-Disposition` em `filename*` (RFC 5987) usando o nome de exibição, validando posse/vínculo e respondendo com mensagem de "sem arquivo" quando não houver PDF; verificar no Swagger o download com paciente dono, médico vinculado e médico sem vínculo
+- [x] 3.7 Implementar `PATCH /api/v1/prescriptions/:id/status` (encerrar/reabrir) e `DELETE /api/v1/prescriptions/:id` com remoção do arquivo em disco, restritos ao paciente dono ou médico emissor
+- [x] 3.8 Implementar `POST /api/v1/prescriptions/:id/medications`, `PATCH /api/v1/medications/:id` e `DELETE /api/v1/medications/:id` exigindo receita válida, gravando `prescribedById` quando a criação vier de médico e recusando com 403 edição/exclusão de item prescrito pelo próprio paciente; verificar no Swagger os quatro casos (criação por médico, edição bloqueada do paciente, edição liberada do item próprio, vínculo inválido)
+- [x] 3.9 Implementar `POST /api/v1/medications/:id/schedules` e `DELETE /api/v1/medication-schedules/:id` restritos ao paciente dono do medicamento, com validação de `HH:mm`, rejeição de duplicidade e ordenação crescente na resposta; verificar tentando adicionar horário inválido, duplicado e válido
+- [x] 3.10 Implementar `GET /api/v1/medications/active` (declaração de rota antes de qualquer `:id`) e `GET /api/v1/patients/:patientId/medications/active`, ambos filtrando `status: ATIVA` e `continuousUse: true`, com nome, dosagem, frequência e horários
+- [x] 3.11 Registrar `PrescriptionsModule` em `app.module.ts`, remover o controller antigo de `medications` e validar que o Swagger em `http://localhost:5000/api` lista os novos endpoints com o prefixo `/api/v1`
+- [x] 3.12 Adicionar `backend/uploads/` ao `.gitignore` e confirmar que `git status` não mostra o PDF de teste criado na tarefa 3.2
 
 ## 4. Camada de serviço e modelos no frontend
 

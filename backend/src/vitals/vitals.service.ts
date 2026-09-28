@@ -1,5 +1,6 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, Role } from '@prisma/client';
+import { PatientAccessService } from '../common/patient-access.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   BloodPressureUpdateDto,
@@ -11,7 +12,10 @@ import {
 
 @Injectable()
 export class VitalsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly patientAccess: PatientAccessService,
+  ) {}
 
   async list(userId: string, range?: DateRangeDto) {
     const where: Prisma.VitalScoreWhereInput = { userId };
@@ -106,28 +110,12 @@ export class VitalsService {
 
   /** Médico: pressão de um paciente vinculado (admin: qualquer paciente). */
   async pressureForPatient(requesterId: string, requesterRole: Role, patientId: string) {
-    const patient = await this.prisma.user.findUnique({ where: { id: patientId } });
-    if (!patient) throw new NotFoundException('Paciente não encontrado');
-    if (requesterRole !== Role.ADMINISTRADOR) {
-      const link = await this.prisma.patientDoctor.findUnique({
-        where: { patientId_doctorId: { patientId, doctorId: requesterId } },
-      });
-      if (!link) throw new ForbiddenException('Paciente não vinculado a este médico');
-    }
+    const patient = await this.patientAccess.assertDoctorCanAccess(requesterId, requesterRole, patientId);
     const vitals = await this.prisma.vitalScore.findMany({
       where: { userId: patientId },
       orderBy: { date: 'desc' },
     });
-    return {
-      patient: {
-        id: patient.id,
-        name: patient.name,
-        fullName: patient.fullName,
-        medicalRecordNumber: patient.medicalRecordNumber,
-        photoUrl: patient.photoUrl,
-      },
-      vitals,
-    };
+    return { patient, vitals };
   }
 
   async patientsOfMedico(medicoId: string) {
