@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { BloodPressureLogComponent } from '../../shared/widgets/blood-pressure-log';
 import { GlucoseLogComponent } from '../../shared/widgets/glucose-log';
 import { WeightLogComponent } from '../../shared/widgets/weight-log';
-import { MedicationTrackerComponent } from '../../shared/widgets/medication-tracker';
+import { ActiveMedicationsComponent } from '../../shared/widgets/active-medications';
 import { VaccinationWalletComponent } from '../../shared/widgets/vaccination-wallet';
 import { PublicCampaignsComponent } from '../../shared/widgets/public-campaigns';
 
@@ -14,7 +14,7 @@ import { PublicCampaignsComponent } from '../../shared/widgets/public-campaigns'
     BloodPressureLogComponent,
     GlucoseLogComponent,
     WeightLogComponent,
-    MedicationTrackerComponent,
+    ActiveMedicationsComponent,
     VaccinationWalletComponent,
     PublicCampaignsComponent,
   ],
@@ -30,7 +30,7 @@ import { PublicCampaignsComponent } from '../../shared/widgets/public-campaigns'
         <app-weight-log />
       </div>
       <div class="lg:col-span-2 xl:col-span-2">
-        <app-medication-tracker />
+        <app-active-medications />
       </div>
       <div class="lg:col-span-4 xl:col-span-4">
         <app-vaccination-wallet />

@@ -21,10 +21,11 @@ const MENU: MenuItem[] = [
   { path: '/glicemia', title: 'Glicemia' },
   { path: '/peso', title: 'Peso e IMC' },
   { path: '/vacinacao', title: 'Vacinação' },
-  { path: '/medicamentos', title: 'Medicamentos' },
+  { path: '/receituario', title: 'Receituário', roles: ['PACIENTE', 'ADMINISTRADOR'] },
   { path: '/campanhas', title: 'Campanhas' },
   { path: '/minha-area', title: 'Minha Área' },
   { path: '/medico/pressao-arterial', title: 'Pressão Pacientes', roles: ['MEDICO', 'ADMINISTRADOR'] },
+  { path: '/medico/receituario', title: 'Receituário Pacientes', roles: ['MEDICO', 'ADMINISTRADOR'] },
   { path: '/admin', title: 'Usuários', roles: ['ADMINISTRADOR'], exact: true },
   { path: '/admin/indices', title: 'Índices de Saúde', roles: ['ADMINISTRADOR'] },
 ];

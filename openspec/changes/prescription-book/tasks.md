@@ -38,18 +38,18 @@
 
 ## 4. Camada de serviço e modelos no frontend
 
-- [ ] 4.1 Criar `frontend/src/app/models/prescription.ts` com as interfaces de prescrição, medicamento com horários, e os DTOs de envio, espelhando o contrato da seção 7 do design
-- [ ] 4.2 Criar `frontend/src/app/core/prescriptions.service.ts` com as chamadas HTTP (incluindo envio de `FormData` sem `Content-Type` manual) e o estado de signals `prescriptions`, `activeMedications`, `loading`, `error` mais `reload()`
-- [ ] 4.3 Remover `MedicationsService` de `frontend/src/app/core/medications.service.ts`, mantendo `VaccinesService` e `ExamTypesService`, e verificar com `npm run build -w frontend` que não há referência quebrada
+- [x] 4.1 Criar `frontend/src/app/models/prescription.ts` com as interfaces de prescrição, medicamento com horários, e os DTOs de envio, espelhando o contrato da seção 7 do design
+- [x] 4.2 Criar `frontend/src/app/core/prescriptions.service.ts` com as chamadas HTTP (incluindo envio de `FormData` sem `Content-Type` manual) e o estado de signals `prescriptions`, `activeMedications`, `loading`, `error` mais `reload()`
+- [x] 4.3 Remover `MedicationsService` de `frontend/src/app/core/medications.service.ts`, mantendo `VaccinesService` e `ExamTypesService`, e verificar com `npm run build -w frontend` que não há referência quebrada
 
 ## 5. Telas do receituário e widget de ativos
 
-- [ ] 5.1 Criar `frontend/src/app/shared/widgets/active-medications.ts` consumindo o estado de signals, listando nome, dosagem, frequência e horários dos medicamentos ativos, com estado vazio orientando a registrar uma receita, indicador de carregamento e mensagem de erro pelo `ToastService`
-- [ ] 5.2 Trocar o `MedicationTrackerComponent` por `ActiveMedicationsComponent` em `frontend/src/app/pages/dashboard/dashboard.ts`
-- [ ] 5.3 Criar `frontend/src/app/pages/receituario/receituario.ts`: listagem das receitas com status, criação com upload de PDF e nome de exibição, cadastro de medicamento próprio com a caixa de uso contínuo, edição dos horários de qualquer medicamento da lista e encerramento/reabertura de receita
-- [ ] 5.4 Criar `frontend/src/app/pages/medico/receituario.ts` reaproveitando o seletor de paciente de `pages/medico/pressao-arterial.ts`, com criação de receita para o paciente selecionado, cadastro de medicamento prescrito e marcação de uso contínuo
-- [ ] 5.5 Atualizar `app.routes.ts` (rota `/receituario` e `/medico/receituario` com `roles` no layout, redirect de `/medicamentos` para `/receituario`) e `layout.ts` (entradas de navegação "Receituário" e "Receituário dos Pacientes"), removendo a entrada "Medicamentos"
-- [ ] 5.6 Apagar `frontend/src/app/shared/widgets/medication-tracker.ts` e verificar com `npm run build -w frontend` e navegação no dev server que o receituário abre, o upload envia o PDF e os horários editados aparecem no dashboard sem recarregar a página
+- [x] 5.1 Criar `frontend/src/app/shared/widgets/active-medications.ts` consumindo o estado de signals, listando nome, dosagem, frequência e horários dos medicamentos ativos, com estado vazio orientando a registrar uma receita, indicador de carregamento e mensagem de erro pelo `ToastService`
+- [x] 5.2 Trocar o `MedicationTrackerComponent` por `ActiveMedicationsComponent` em `frontend/src/app/pages/dashboard/dashboard.ts`
+- [x] 5.3 Criar `frontend/src/app/pages/receituario/receituario.ts`: listagem das receitas com status, criação com upload de PDF e nome de exibição, cadastro de medicamento próprio com a caixa de uso contínuo, edição dos horários de qualquer medicamento da lista e encerramento/reabertura de receita
+- [x] 5.4 Criar `frontend/src/app/pages/medico/receituario.ts` reaproveitando o seletor de paciente de `pages/medico/pressao-arterial.ts`, com criação de receita para o paciente selecionado, cadastro de medicamento prescrito e marcação de uso contínuo
+- [x] 5.5 Atualizar `app.routes.ts` (rota `/receituario` e `/medico/receituario` com `roles` no layout, redirect de `/medicamentos` para `/receituario`) e `layout.ts` (entradas de navegação "Receituário" e "Receituário dos Pacientes"), removendo a entrada "Medicamentos"
+- [x] 5.6 Apagar `frontend/src/app/shared/widgets/medication-tracker.ts` e verificar com `npm run build -w frontend` e navegação no dev server que o receituário abre, o upload envia o PDF e os horários editados aparecem no dashboard sem recarregar a página
 
 ## 6. Verificação de integração
 

@@ -57,8 +57,13 @@ export const routes: Routes = [
       },
       {
         path: 'medicamentos',
-        data: { title: 'Medicamentos' },
-        loadComponent: () => import('./shared/widgets/medication-tracker').then((m) => m.MedicationTrackerComponent),
+        redirectTo: 'receituario',
+        pathMatch: 'full',
+      },
+      {
+        path: 'receituario',
+        data: { title: 'Receituário' },
+        loadComponent: () => import('./pages/receituario/receituario').then((m) => m.ReceituarioComponent),
       },
       {
         path: 'campanhas',
@@ -74,6 +79,11 @@ export const routes: Routes = [
         path: 'medico',
         pathMatch: 'full',
         redirectTo: 'medico/pressao-arterial',
+      },
+      {
+        path: 'medico/receituario',
+        data: { title: 'Receituário dos Pacientes' },
+        loadComponent: () => import('./pages/medico/receituario').then((m) => m.MedicoReceituarioComponent),
       },
       {
         path: 'medico/pressao-arterial',
