@@ -1,21 +1,20 @@
-import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { PrescriptionsService } from '../../core/prescriptions.service';
 import { ToastService } from '../../core/toast.service';
 import { AuthService } from '../../core/auth.service';
 import { VitalsService } from '../../core/vitals.service';
 import type { AdminPatient } from '../../models/user';
-import type { Prescription, PrescriptionMedication } from '../../models/prescription';
+import { formatDuration, type Prescription, type PrescriptionMedication } from '../../models/prescription';
 import { BadgeComponent } from '../../shared/ui/badge';
 import { ButtonComponent } from '../../shared/ui/button';
 import { CardComponent, CardContentComponent, CardDescriptionComponent, CardHeaderComponent, CardTitleComponent } from '../../shared/ui/card';
-import { CheckboxComponent } from '../../shared/ui/checkbox';
-import { DialogComponent } from '../../shared/ui/dialog';
-import { InputComponent, LabelComponent } from '../../shared/ui/input';
+import { InputComponent } from '../../shared/ui/input';
 import { SelectComponent, SelectOption } from '../../shared/ui/select';
 import { IconComponent } from '../../shared/icon.component';
 import { SpinnerComponent } from '../../shared/ui/spinner';
 import { TABLE_IMPORTS } from '../../shared/ui/table';
+import { PrescriptionFormComponent, type PrescriptionFormValue } from '../../shared/widgets/prescription-form';
 
 function inputValue(event: Event): string {
   return (event.target as HTMLInputElement).value;
@@ -27,9 +26,9 @@ function inputValue(event: Event): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     DatePipe, BadgeComponent, ButtonComponent, CardComponent, CardContentComponent,
-    CardDescriptionComponent, CardHeaderComponent, CardTitleComponent, CheckboxComponent,
-    DialogComponent, InputComponent, LabelComponent, SelectComponent, IconComponent,
-    SpinnerComponent, TABLE_IMPORTS,
+    CardDescriptionComponent, CardHeaderComponent, CardTitleComponent, InputComponent,
+    SelectComponent, IconComponent, PrescriptionFormComponent, SpinnerComponent,
+    TABLE_IMPORTS,
   ],
   template: `
     <div class="flex flex-1 flex-col gap-6">
@@ -78,7 +77,7 @@ function inputValue(event: Event): string {
               <app-card-header class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <app-card-title class="flex flex-wrap items-center gap-2">
-                    {{ rx.fileDisplayName }}
+                    {{ rx.fileDisplayName ?? 'Receita sem PDF' }}
                     <span app-badge [variant]="rx.status === 'ATIVA' ? 'default' : 'secondary'">
                       {{ rx.status === 'ATIVA' ? 'Ativa' : 'Encerrada' }}
                     </span>
@@ -86,10 +85,12 @@ function inputValue(event: Event): string {
                   <app-card-description>Emitida em {{ rx.issuedAt | date: 'dd/MM/yyyy' }}</app-card-description>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                  <button app-button variant="outline" size="sm" (click)="download(rx)">
-                    <app-icon name="download" class="mr-2 h-4 w-4" />
-                    Baixar PDF
-                  </button>
+                  @if (rx.hasFile) {
+                    <button app-button variant="outline" size="sm" (click)="download(rx)">
+                      <app-icon name="download" class="mr-2 h-4 w-4" />
+                      Baixar PDF
+                    </button>
+                  }
                   @if (rx.status === 'ATIVA') {
                     <button app-button variant="outline" size="sm" (click)="openMedicationFor(rx)">
                       <app-icon name="pill" class="mr-2 h-4 w-4" />
@@ -115,6 +116,7 @@ function inputValue(event: Event): string {
                         <th app-table-head>Nome</th>
                         <th app-table-head class="hidden sm:table-cell">Dosagem</th>
                         <th app-table-head class="hidden md:table-cell">Frequência</th>
+                        <th app-table-head class="hidden lg:table-cell">Duração</th>
                         <th app-table-head>Origem</th>
                         <th app-table-head>Horários</th>
                       </tr>
@@ -132,6 +134,9 @@ function inputValue(event: Event): string {
                           </td>
                           <td app-table-cell class="hidden sm:table-cell">{{ med.dosage }}</td>
                           <td app-table-cell class="hidden md:table-cell">{{ med.frequency }}</td>
+                          <td app-table-cell class="hidden lg:table-cell">
+                            <span class="text-sm text-muted-foreground">{{ duration(med) }}</span>
+                          </td>
                           <td app-table-cell>
                             {{ med.prescribedById === myId() ? 'prescrito por você' : 'lançado pelo paciente' }}
                           </td>
@@ -154,58 +159,21 @@ function inputValue(event: Event): string {
       }
     </div>
 
-    <app-dialog [open]="openCreate()" (close)="openCreate.set(false)">
-      <div class="p-6">
-        <h2 class="text-lg font-semibold leading-none tracking-tight">Nova receita</h2>
-        <p class="mt-2 text-sm text-muted-foreground">O PDF é obrigatório.</p>
-      </div>
-      <div class="grid gap-4 px-6">
-        <div>
-          <label app-label>Nome de exibição do arquivo</label>
-          <input app-input placeholder="Receita — Dr. Silva.pdf" [value]="fileDisplayName()" (input)="fileDisplayName.set(inputValue($event))" />
-        </div>
-        <div>
-          <label app-label>Arquivo PDF</label>
-          <input #pdfInput type="file" accept="application/pdf,.pdf" class="block w-full text-sm" (change)="onFile($event)" />
-          @if (fileName()) {
-            <p class="mt-1 text-xs text-muted-foreground">{{ fileName() }}</p>
-          }
-        </div>
-      </div>
-      <div class="flex items-center justify-end gap-2 p-6">
-        <button app-button variant="outline" (click)="openCreate.set(false)">Cancelar</button>
-        <button app-button [disabled]="saving()" (click)="createPrescription()">Salvar</button>
-      </div>
-    </app-dialog>
+    <app-prescription-form
+      [open]="openCreate()"
+      [saving]="saving()"
+      (close)="openCreate.set(false)"
+      (save)="createPrescription($event)"
+    />
 
-    <app-dialog [open]="openMedication()" (close)="openMedication.set(false)">
-      <div class="p-6">
-        <h2 class="text-lg font-semibold leading-none tracking-tight">Medicamento prescrito</h2>
-        <p class="mt-2 text-sm text-muted-foreground">{{ targetPrescription()?.fileDisplayName }}</p>
-      </div>
-      <div class="grid gap-4 px-6">
-        <div>
-          <label app-label>Nome</label>
-          <input app-input placeholder="Losartana" [value]="medName()" (input)="medName.set(inputValue($event))" />
-        </div>
-        <div>
-          <label app-label>Dosagem</label>
-          <input app-input placeholder="50mg" [value]="medDosage()" (input)="medDosage.set(inputValue($event))" />
-        </div>
-        <div>
-          <label app-label>Frequência</label>
-          <input app-input placeholder="1x ao dia" [value]="medFrequency()" (input)="medFrequency.set(inputValue($event))" />
-        </div>
-        <label class="flex items-center gap-2 text-sm">
-          <app-checkbox [checked]="medContinuousUse()" (checkedChange)="medContinuousUse.set($event)" />
-          Uso contínuo
-        </label>
-      </div>
-      <div class="flex items-center justify-end gap-2 p-6">
-        <button app-button variant="outline" (click)="openMedication.set(false)">Cancelar</button>
-        <button app-button [disabled]="saving()" (click)="createMedication()">Salvar</button>
-      </div>
-    </app-dialog>
+    <app-prescription-form
+      [open]="openMedication()"
+      mode="append"
+      [saving]="saving()"
+      instanceId="append"
+      (close)="openMedication.set(false)"
+      (save)="createMedication($event)"
+    />
   `,
 })
 export class MedicoReceituarioComponent {
@@ -213,7 +181,6 @@ export class MedicoReceituarioComponent {
   private readonly auth = inject(AuthService);
   private readonly vitals = inject(VitalsService);
   private readonly toast = inject(ToastService);
-  private readonly pdfInput = viewChild<ElementRef<HTMLInputElement>>('pdfInput');
 
   readonly patients = signal<AdminPatient[]>([]);
   readonly selectedId = signal('');
@@ -222,19 +189,11 @@ export class MedicoReceituarioComponent {
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly inputValue = inputValue;
+  readonly duration = formatDuration;
 
   readonly openCreate = signal(false);
   readonly openMedication = signal(false);
   readonly targetPrescription = signal<Prescription | null>(null);
-
-  readonly fileDisplayName = signal('');
-  readonly fileName = signal('');
-  private file: File | null = null;
-
-  readonly medName = signal('');
-  readonly medDosage = signal('');
-  readonly medFrequency = signal('');
-  readonly medContinuousUse = signal(false);
 
   /** O médico autenticado; usado para marcar "prescrito por você" e o status. */
   readonly myId = computed(() => this.auth.user()?.id ?? '');
@@ -287,34 +246,18 @@ export class MedicoReceituarioComponent {
     return med.schedules.map((s) => s.time).join(' · ');
   }
 
-  onFile(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    this.file = input.files?.[0] ?? null;
-    this.fileName.set(this.file?.name ?? '');
-    if (this.file && !this.fileDisplayName().trim()) this.fileDisplayName.set(this.file.name);
-  }
-
-  async createPrescription(): Promise<void> {
+  async createPrescription(value: PrescriptionFormValue): Promise<void> {
     const patientId = this.selectedId();
-    if (!this.file) {
-      this.toast.error('Receita', 'Selecione o PDF da receita.');
-      return;
-    }
-    const displayName = this.fileDisplayName().trim();
-    if (!displayName) {
-      this.toast.error('Receita', 'Informe o nome de exibição do arquivo.');
-      return;
-    }
     this.saving.set(true);
     try {
-      await this.service.createForPatient(patientId, this.file, displayName);
+      await this.service.createForPatient(
+        patientId,
+        { medications: value.medications },
+        value.file,
+        value.fileDisplayName,
+      );
       this.toast.success('Receita registrada');
       this.openCreate.set(false);
-      this.file = null;
-      this.fileName.set('');
-      this.fileDisplayName.set('');
-      const input = this.pdfInput()?.nativeElement;
-      if (input) input.value = '';
       await this.loadPatient(patientId);
     } catch (error) {
       this.toast.error('Receita', message(error, 'Não foi possível registrar a receita.'));
@@ -325,31 +268,15 @@ export class MedicoReceituarioComponent {
 
   openMedicationFor(rx: Prescription): void {
     this.targetPrescription.set(rx);
-    this.medName.set('');
-    this.medDosage.set('');
-    this.medFrequency.set('');
-    this.medContinuousUse.set(false);
     this.openMedication.set(true);
   }
 
-  async createMedication(): Promise<void> {
+  async createMedication(value: PrescriptionFormValue): Promise<void> {
     const rx = this.targetPrescription();
     if (!rx) return;
-    const name = this.medName().trim();
-    const dosage = this.medDosage().trim();
-    const frequency = this.medFrequency().trim();
-    if (!name || !dosage || !frequency) {
-      this.toast.error('Medicamento', 'Preencha nome, dosagem e frequência.');
-      return;
-    }
     this.saving.set(true);
     try {
-      await this.service.addMedication(rx.id, {
-        name,
-        dosage,
-        frequency,
-        continuousUse: this.medContinuousUse(),
-      });
+      await this.service.addMedication(rx.id, value.medications[0]);
       this.openMedication.set(false);
       this.toast.success('Medicamento prescrito');
       await this.loadPatient(this.selectedId());
@@ -366,7 +293,7 @@ export class MedicoReceituarioComponent {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = rx.fileDisplayName;
+      link.download = rx.fileDisplayName ?? 'receita.pdf';
       link.click();
       URL.revokeObjectURL(url);
     } catch {

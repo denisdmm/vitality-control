@@ -1,9 +1,12 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
+import { validateSync } from 'class-validator';
 import { Prescription, PrescriptionStatus, Prisma, Role } from '@prisma/client';
 import { AuthenticatedUser } from '../common/decorators/current-user.decorator';
 import { PatientAccessService } from '../common/patient-access.service';
@@ -11,6 +14,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   CreatePrescriptionDto,
   CreatePrescriptionMedicationDto,
+  CreatePrescriptionMedicationInputDto,
   CreateMedicationScheduleDto,
   ListPrescriptionsQueryDto,
   UpdatePrescriptionMedicationDto,
@@ -50,11 +54,12 @@ export class PrescriptionsService {
   private async create(
     patientId: string,
     doctorId: string | null,
-    uploadedById: string,
+    createdById: string,
     dto: CreatePrescriptionDto,
     file?: Express.Multer.File,
   ) {
-    let stored: StoredPdf;
+    const isDoctor = doctorId !== null;
+    let stored: StoredPdf | null;
     try {
       stored = this.files.register(file, dto.fileDisplayName);
     } catch (error) {
@@ -62,23 +67,67 @@ export class PrescriptionsService {
       throw error;
     }
     try {
+      // Receita, medicamentos e horários entram juntos: evita a receita vazia que o
+      // cadastro em dois passos deixava quando um medicamento falhava.
       const prescription = await this.prisma.prescription.create({
         data: {
           patientId,
           doctorId,
-          uploadedById,
-          fileStoredName: stored.storedName,
-          fileDisplayName: stored.displayName,
-          fileMimeType: stored.mimeType,
-          fileSize: stored.size,
+          createdById,
+          fileStoredName: stored?.storedName ?? null,
+          fileDisplayName: stored?.displayName ?? null,
+          fileMimeType: stored?.mimeType ?? null,
+          fileSize: stored?.size ?? null,
           ...(dto.issuedAt ? { issuedAt: new Date(dto.issuedAt) } : {}),
+          medications: {
+            create: this.parseMedications(dto.medications).map((medication) => ({
+              userId: patientId,
+              name: medication.name.trim(),
+              dosage: medication.dosage.trim(),
+              frequency: medication.frequency.trim(),
+              continuousUse: medication.continuousUse ?? false,
+              durationDays: medication.durationDays ?? null,
+              prescribedById: isDoctor ? doctorId : null,
+              schedules: { create: medication.schedules.map((time) => ({ time })) },
+            })),
+          },
         },
+        include: { medications: { include: MEDICATION_INCLUDE, orderBy: { name: 'asc' } } },
       });
-      return this.toResponse(prescription, []);
+      return this.toResponse(prescription, prescription.medications);
     } catch (error) {
       await this.files.removeUpload(file);
       throw error;
     }
+  }
+
+  /**
+   * `medications` chega como texto JSON no multipart. O parse fica aqui (e não em um
+   * `@Transform` no DTO) porque `@Transform` combinado com `@ValidateNested` na mesma
+   * propriedade quebra a validação aninhada: os itens perdem os campos no `whitelist`
+   * e chegam com `undefined` no serviço.
+   */
+  private parseMedications(raw: string): CreatePrescriptionMedicationInputDto[] {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      throw new BadRequestException('medications deve ser um array JSON de medicamentos');
+    }
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      throw new BadRequestException('a receita precisa de ao menos um medicamento');
+    }
+    return parsed.map((item, index) => {
+      const medication = plainToInstance(CreatePrescriptionMedicationInputDto, item);
+      const errors = validateSync(medication, { whitelist: true });
+      if (errors.length > 0) {
+        const messages = errors.flatMap((error) =>
+          Object.values(error.constraints ?? {}).map((message) => `medicamentos[${index}]: ${message}`),
+        );
+        throw new BadRequestException(messages);
+      }
+      return medication;
+    });
   }
 
   // ── Listagem ─────────────────────────────────────────────────────────────
@@ -122,13 +171,13 @@ export class PrescriptionsService {
     const prescription = await this.prisma.prescription.findUnique({ where: { id } });
     if (!prescription) throw new NotFoundException('Receita não encontrada');
     await this.assertCanAccessPrescription(user, prescription);
-    if (!(await this.files.exists(prescription.fileStoredName))) {
+    if (!prescription.fileStoredName || !(await this.files.exists(prescription.fileStoredName))) {
       throw new NotFoundException('Receita sem arquivo');
     }
     return {
       buffer: await this.files.read(prescription.fileStoredName),
-      displayName: prescription.fileDisplayName,
-      mimeType: prescription.fileMimeType,
+      displayName: prescription.fileDisplayName ?? 'receita.pdf',
+      mimeType: prescription.fileMimeType ?? 'application/pdf',
     };
   }
 
@@ -175,6 +224,7 @@ export class PrescriptionsService {
         dosage: dto.dosage,
         frequency: dto.frequency,
         continuousUse: dto.continuousUse ?? false,
+        durationDays: dto.durationDays ?? null,
         prescribedById: isDoctor ? user.id : null,
       },
       include: MEDICATION_INCLUDE,
@@ -193,6 +243,7 @@ export class PrescriptionsService {
         ...(dto.dosage !== undefined ? { dosage: dto.dosage } : {}),
         ...(dto.frequency !== undefined ? { frequency: dto.frequency } : {}),
         ...(dto.continuousUse !== undefined ? { continuousUse: dto.continuousUse } : {}),
+        ...(dto.durationDays !== undefined ? { durationDays: dto.durationDays } : {}),
       },
       include: MEDICATION_INCLUDE,
     });
@@ -215,7 +266,7 @@ export class PrescriptionsService {
     const existing = await this.prisma.medicationSchedule.findUnique({
       where: { medicationId_time: { medicationId, time: dto.time } },
     });
-    if (existing) throw new BadRequestException('Horário já cadastrado para este medicamento');
+    if (existing) throw new ConflictException('Horário já cadastrado para este medicamento');
 
     const created = await this.prisma.medicationSchedule.create({
       data: { medicationId, time: dto.time },
@@ -326,6 +377,7 @@ export class PrescriptionsService {
       doctorId: prescription.doctorId,
       issuedAt: prescription.issuedAt,
       status: prescription.status,
+      hasFile: Boolean(prescription.fileStoredName),
       fileDisplayName: prescription.fileDisplayName,
       fileMimeType: prescription.fileMimeType,
       fileSize: prescription.fileSize,
@@ -343,6 +395,7 @@ export class PrescriptionsService {
       dosage: medication.dosage,
       frequency: medication.frequency,
       continuousUse: medication.continuousUse,
+      durationDays: medication.durationDays,
       prescribedById: medication.prescribedById,
       prescriptionStatus: medication.prescription?.status ?? null,
       schedules: (medication.schedules ?? [])

@@ -68,9 +68,11 @@ export class PrescriptionFileService implements OnModuleInit {
   /**
    * O multer já gravou o arquivo: aqui só se valida e se extrai os metadados.
    * O nome de exibição é o informado no formulário, não o do upload.
+   *
+   * Sem arquivo a receita é válida: devolve `null` e nada é gravado.
    */
-  register(file: Express.Multer.File | undefined, displayName?: string): StoredPdf {
-    if (!file) throw new BadRequestException('Arquivo PDF é obrigatório');
+  register(file: Express.Multer.File | undefined, displayName?: string): StoredPdf | null {
+    if (!file) return null;
     if (file.mimetype !== 'application/pdf') {
       throw new BadRequestException('Somente arquivos PDF são aceitos');
     }
@@ -107,8 +109,8 @@ export class PrescriptionFileService implements OnModuleInit {
     if (file?.filename) await this.removeQuietly(file.filename);
   }
 
-  async remove(storedName: string): Promise<void> {
-    await this.removeQuietly(storedName);
+  async remove(storedName: string | null): Promise<void> {
+    if (storedName) await this.removeQuietly(storedName);
   }
 
   private async removeQuietly(name: string): Promise<void> {

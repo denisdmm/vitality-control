@@ -57,3 +57,13 @@
 - [x] 6.2 Percorrer no Swagger o fluxo completo: paciente cria receita com PDF, baixa o PDF, adiciona medicamento e horários; médico vinculado cria receita e medicamento prescrito; paciente recebe 403 ao tentar alterar o medicamento prescrito; listagem de ativos reflete receita encerrada
 - [x] 6.3 Conferir no dev server (`http://localhost:4300`) o fluxo do paciente e do médico, o download do PDF abrindo com o nome escolhido no upload e a atualização do dashboard após editar horários
 - [x] 6.4 Verificar que nenhum endpoint devolve `fileStoredName` ou caminho de diretório e que `GET /api/v1/medications/active` não retorna medicamentos de receita encerrada
+
+## 7. Correção posterior (change `prescription-registration-form`)
+
+- [x] 7.1 As tasks acima descrevem o PDF como obrigatório no cadastro (3.3, 5.3, 5.6, 6.2): a regra vigente
+      está na change `prescription-registration-form` e já foi sincronizada em `openspec/specs/`
+- [x] 7.2 `5.3` e `5.6` ficaram superadas: o cadastro de medicamento próprio saiu da tela e virou o formulário
+      composto compartilhado (`frontend/src/app/shared/widgets/prescription-form.ts`), com o PDF como campo
+      opcional; a edição de horários na listagem foi mantida
+- [x] 7.3 `3.3` ficou superada quanto à limpeza de órfão: a remoção do upload passou a ser responsabilidade do
+      `CleanUploadOnErrorInterceptor`, que também cobre DTO inválido e vínculo ausente

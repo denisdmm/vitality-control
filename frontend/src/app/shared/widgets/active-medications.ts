@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { PrescriptionsService } from '../../core/prescriptions.service';
+import { formatDuration } from '../../models/prescription';
 import { ToastService } from '../../core/toast.service';
 import { AuthService } from '../../core/auth.service';
 import { ButtonComponent } from '../ui/button';
@@ -52,6 +53,7 @@ import { TABLE_IMPORTS } from '../ui/table';
                 <th app-table-head>Nome</th>
                 <th app-table-head class="hidden sm:table-cell">Dosagem</th>
                 <th app-table-head class="hidden md:table-cell">Frequência</th>
+                <th app-table-head class="hidden lg:table-cell">Duração</th>
                 <th app-table-head>Horários</th>
               </tr>
             </thead>
@@ -61,6 +63,9 @@ import { TABLE_IMPORTS } from '../ui/table';
                   <td app-table-cell class="font-medium">{{ med.name }}</td>
                   <td app-table-cell class="hidden sm:table-cell">{{ med.dosage }}</td>
                   <td app-table-cell class="hidden md:table-cell">{{ med.frequency }}</td>
+                  <td app-table-cell class="hidden lg:table-cell">
+                    <span class="text-sm text-muted-foreground">{{ formatDuration(med) }}</span>
+                  </td>
                   <td app-table-cell>
                     @if (med.schedules.length > 0) {
                       <span class="font-mono text-sm">{{ times(med) }}</span>
@@ -91,6 +96,7 @@ export class ActiveMedicationsComponent {
   readonly active = this.service.activeMedications;
   readonly loading = this.service.loading;
   readonly isPatient = computed(() => this.auth.user()?.role !== 'MEDICO');
+  readonly formatDuration = formatDuration;
   readonly hasSchedulesMissing = computed(() => this.active().some((m) => m.schedules.length === 0));
 
   constructor() {

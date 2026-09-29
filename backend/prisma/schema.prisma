@@ -57,7 +57,7 @@ model User {
 
   prescriptionsAsPatient Prescription[] @relation("prescriptionPatient")
   prescriptionsAsDoctor  Prescription[] @relation("prescriptionDoctor")
-  prescriptionsUploaded  Prescription[] @relation("prescriptionUploader")
+  prescriptionsCreated  Prescription[] @relation("prescriptionAuthor")
   prescribedMedications  Medication[]   @relation("medicationPrescriber")
 
   @@map("users")
@@ -132,17 +132,17 @@ model Prescription {
   doctorId        String?            @map("doctor_id")
   issuedAt        DateTime           @default(now()) @map("issued_at") @db.Timestamptz
   status          PrescriptionStatus @default(ATIVA)
-  fileStoredName  String             @map("file_stored_name")
-  fileDisplayName String             @map("file_display_name")
-  fileMimeType    String             @map("file_mime_type")
-  fileSize        Int                @map("file_size")
-  uploadedById    String             @map("uploaded_by_id")
+  fileStoredName  String?            @map("file_stored_name")
+  fileDisplayName String?            @map("file_display_name")
+  fileMimeType    String?            @map("file_mime_type")
+  fileSize        Int?               @map("file_size")
+  createdById     String             @map("created_by_id")
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz
   updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz
 
   patient     User         @relation("prescriptionPatient", fields: [patientId], references: [id], onDelete: Cascade)
   doctor      User?        @relation("prescriptionDoctor", fields: [doctorId], references: [id], onDelete: SetNull)
-  uploadedBy  User         @relation("prescriptionUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  createdBy   User         @relation("prescriptionAuthor", fields: [createdById], references: [id], onDelete: Restrict)
   medications Medication[]
 
   @@index([patientId, status])
@@ -159,6 +159,7 @@ model Medication {
   dosage         String
   frequency      String
   continuousUse  Boolean @default(false) @map("continuous_use")
+  durationDays   Int?    @map("duration_days")
   prescribedById String? @map("prescribed_by_id")
 
   user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)

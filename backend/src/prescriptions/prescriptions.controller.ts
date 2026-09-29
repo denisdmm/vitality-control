@@ -34,6 +34,7 @@ import {
   pdfFileFilter,
   recipesDiskStorage,
 } from './prescription-file.service';
+import { CleanUploadOnErrorInterceptor } from './clean-upload-on-error.interceptor';
 import { PrescriptionsService } from './prescriptions.service';
 import {
   CreateMedicationScheduleDto,
@@ -61,10 +62,15 @@ export class PrescriptionsController {
   constructor(private readonly service: PrescriptionsService) {}
 
   @Post()
-  @UseInterceptors(FileInterceptor('file', PDF_UPLOAD))
+  @UseInterceptors(FileInterceptor('file', PDF_UPLOAD), CleanUploadOnErrorInterceptor)
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: CreatePrescriptionDto })
-  @ApiOperation({ summary: 'Registra receita do próprio paciente (PDF obrigatório)' })
+  @ApiBody({
+    type: CreatePrescriptionDto,
+    description:
+      'Multipart com `medications` em JSON e, opcionalmente, `file` (PDF). Registra a receita e ' +
+      'seus medicamentos em uma única transação.',
+  })
+  @ApiOperation({ summary: 'Registra receita do próprio paciente com medicamentos (PDF opcional)' })
   create(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreatePrescriptionDto,
@@ -94,12 +100,13 @@ export class PrescriptionsController {
     @Res() res: Response,
   ): Promise<void> {
     const { buffer, displayName, mimeType } = await this.service.file(user, id);
-    const ascii = displayName.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
+    const safeName = displayName ?? 'receita.pdf';
+    const ascii = safeName.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
     res.setHeader('Content-Type', mimeType);
     res.setHeader('Content-Length', buffer.length);
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(displayName)}`,
+      `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(safeName)}`,
     );
     res.send(buffer);
   }
@@ -195,10 +202,15 @@ export class PatientPrescriptionsController {
 
   @Post(':patientId/prescriptions')
   @Roles(Role.MEDICO, Role.ADMINISTRADOR)
-  @UseInterceptors(FileInterceptor('file', PDF_UPLOAD))
+  @UseInterceptors(FileInterceptor('file', PDF_UPLOAD), CleanUploadOnErrorInterceptor)
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: CreatePrescriptionDto })
-  @ApiOperation({ summary: 'Médico registra receita para paciente vinculado (PDF obrigatório)' })
+  @ApiBody({
+    type: CreatePrescriptionDto,
+    description:
+      'Multipart com `medications` em JSON e, opcionalmente, `file` (PDF). Os itens ficam marcados ' +
+      'como prescritos por este médico.',
+  })
+  @ApiOperation({ summary: 'Médico registra receita para paciente vinculado (PDF opcional)' })
   create(
     @CurrentUser() user: AuthenticatedUser,
     @Param('patientId') patientId: string,

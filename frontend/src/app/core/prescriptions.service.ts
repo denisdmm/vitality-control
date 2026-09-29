@@ -5,6 +5,7 @@ import { API_BASE } from './api';
 import { AuthService } from './auth.service';
 import type {
   ActiveMedication,
+  CreatePrescriptionDto,
   CreatePrescriptionMedicationDto,
   MedicationSchedule,
   Prescription,
@@ -63,22 +64,37 @@ export class PrescriptionsService {
     );
   }
 
-  // ── Criação com PDF ─────────────────────────────────────────────────────
+  // ── Criação da receita com seus medicamentos ────────────────────────────
 
-  /** `FormData` sem `Content-Type` manual: o browser define a boundary. */
-  createMine(file: File, fileDisplayName: string, issuedAt?: string): Promise<Prescription> {
-    return this.sendForm(`${this.base}`, file, fileDisplayName, issuedAt);
+  /**
+   * Receita, medicamentos e horários vão em um único POST; o PDF é complemento
+   * opcional. Os medicamentos seguem como texto JSON porque o multipart não carrega
+   * array de objetos, e o backend valida item a item.
+   */
+  createMine(dto: CreatePrescriptionDto, file?: File, fileDisplayName?: string): Promise<Prescription> {
+    return this.sendForm(this.base, dto, file, fileDisplayName);
   }
 
-  createForPatient(patientId: string, file: File, fileDisplayName: string, issuedAt?: string) {
-    return this.sendForm(`${API_BASE}/patients/${patientId}/prescriptions`, file, fileDisplayName, issuedAt);
+  createForPatient(
+    patientId: string,
+    dto: CreatePrescriptionDto,
+    file?: File,
+    fileDisplayName?: string,
+  ): Promise<Prescription> {
+    return this.sendForm(`${API_BASE}/patients/${patientId}/prescriptions`, dto, file, fileDisplayName);
   }
 
-  private sendForm(url: string, file: File, fileDisplayName: string, issuedAt?: string) {
+  private sendForm(
+    url: string,
+    dto: CreatePrescriptionDto,
+    file?: File,
+    fileDisplayName?: string,
+  ): Promise<Prescription> {
     const form = new FormData();
-    form.append('fileDisplayName', fileDisplayName);
-    if (issuedAt) form.append('issuedAt', issuedAt);
-    form.append('file', file, file.name);
+    form.append('medications', JSON.stringify(dto.medications));
+    if (dto.issuedAt) form.append('issuedAt', dto.issuedAt);
+    if (fileDisplayName) form.append('fileDisplayName', fileDisplayName);
+    if (file) form.append('file', file, file.name);
     return firstValueFrom(this.http.post<Prescription>(url, form));
   }
 

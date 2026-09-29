@@ -417,6 +417,58 @@ cd /vitality-control/frontend && npm run build
 
 ---
 
+## Sessão 3 — Receituário: formulário único (change OpenSpec `prescription-registration-form`)
+
+**Data:** 29/09/2026
+**Estado:** concluída
+
+### Contexto
+O cadastro de receita exigia PDF e era feito em dois passos (receita com PDF, depois
+medicamentos em um modal separado). O usuário apontou que o formulário não tinha
+dose, frequência, duração nem horários. Decidido: PDF vira opcional e o cadastro
+passa a ser um único formulário, igual para paciente e médico.
+
+### O que foi feito
+- Schema: metadados de arquivo nuláveis, `uploadedById` → `createdById` e
+  `Medication.durationDays Int?`. Migration
+  `20260929122419_prescription_registration_form` aplicada no dev.
+- Backend: `medications` chega como texto JSON no multipart e é validado item a
+  item no serviço (`@Transform` + `@ValidateNested` na mesma propriedade quebra a
+  validação aninhada com `whitelist`). Receita, medicamentos e horários entram em
+  uma única escrita aninhada do Prisma.
+- `CleanUploadOnErrorInterceptor` remove o PDF gravado pelo multer quando a
+  requisição falha (DTO inválido, vínculo ausente, erro de banco) — o
+  `create` do serviço só limpava em falha de banco.
+- Frontend: `frontend/src/app/shared/widgets/prescription-form.ts` (grupos
+  repetíveis de medicamento, horários, duração, uso contínuo e PDF opcional),
+  usado no modal "Nova receita" do paciente e do médico e no acréscimo posterior
+  de medicamento (`mode="append"`). Histórico e widget de ativos passaram a
+  mostrar a duração e a esconder "Baixar PDF" quando `hasFile` é falso.
+- Duração é apenas informativo: não há expiração automática, ativo continua
+  sendo receita `ATIVA` + `continuousUse`.
+
+### Validação
+- `npm run build -w backend` e `npm run build -w frontend` sem erro; bundle
+  servido pelo dev server conferido.
+- API: cadastro sem PDF (201, `hasFile: false`), com PDF (201, `hasFile: true`),
+  médico vinculado (201, itens como prescritos) e médico sem vínculo (403).
+  Recusas em 400: lista vazia, sem nome, sem horário, horário inválido ou
+  duplicado, duração 0 ou 3651, frequência ausente. Limite 3650 aceito.
+- Órfãos: 403, 400 e falha de escrita deixam o diretório `uploads/receitas` com a
+  mesma contagem de arquivos; o caminho válido soma exatamente 1.
+- Dados de teste removidos: 13 receitas, 9 medicamentos, 11 horários, 1 vínculo,
+  6 usuários `rx-*`/`test-*` e 7 PDFs. `uploads/receitas` vazio.
+
+### Bloqueios
+- Nenhum.
+
+### Próximos passos
+- [ ] `npm run prisma:deploy` no ambiente de produção.
+- [ ] Avaliar expiração automática por `durationDays` (fora de escopo: hoje é
+      apenas informativo).
+
+---
+
 ---
 
 ## Modelo de entrada para a próxima sessão
