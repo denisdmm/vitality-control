@@ -17,6 +17,7 @@ contém apenas o template do OpenSpec. Este arquivo é o resumo.
 
 ## Regras permanentes
 
+- Use sempre o idioma em Português Brasil
 - Seja objetivo.
 - Evite respostas longas quando uma resposta curta resolver.
 - Nao gere codigo sem solicitacao.
@@ -62,9 +63,35 @@ Pergunte somente quando a decisão alterar regra de negócio, contrato de API, b
 
 ## Testes e validacao
 
-- Backend nao possui suite de testes configurada (sem jest no `backend/package.json`). Valide por build (`npm run build -w backend`) e, quando houver, por chamada ao endpoint no Swagger (`http://localhost:5000/api`).
-- Frontend tem `ng test` declarado, mas nao ha specs no repositorio; a validacao real hoje e `npm run build -w frontend` (build de producao) ou verificacao manual no dev server.
+- Backend nao possui suite de testes configurada (sem jest no `backend/package.json`) nem lint. Valide por build (`npm run build -w backend`) e, quando houver, por chamada ao endpoint no Swagger (`http://localhost:5000/api`).
+- Frontend tem `ng test` declarado, mas nao ha specs no repositorio; a validacao real hoje e `npm run build -w frontend` (build de producao) ou verificacao manual no dev server. `npm test` na raiz delega para `ng test -w frontend`.
+- Nao existe lint configurado em nenhuma das duas apps; o unico formatador e o Prettier do frontend (`frontend/.prettierrc`).
 - Rode sempre a menor validacao util para a mudanca.
+
+## Mapa do codigo
+
+Modulos do backend (`backend/src/<dominio>/`):
+
+`auth`, `common` (guards/decorators/`JwtStrategy`), `doctor-panel`, `exam-types`, `health-records`,
+`prescriptions`, `prisma` (`PrismaService`), `reports`, `shared-data`, `users`, `vaccines`, `vitals`.
+Upload de PDF de receita: `backend/uploads/` via multer (`prescriptions/prescription-file.service.ts`,
+`clean-upload-on-error.interceptor.ts`).
+
+Modelos Prisma: `User`, `PatientDoctor`, `ClinicalNote`, `PatientAuditEvent`, `HealthRecord`, `SubItem`,
+`VitalScore`, `Prescription`, `Medication`, `MedicationSchedule`, `Vaccine`, `ExamType`, `SharedData`;
+enums `Role`, `PatientAuditAction`, `HealthRecordStatus`, `PrescriptionStatus`.
+
+Frontend (`frontend/src/app/`):
+
+- `pages/`: `login`, `dashboard`, `minha-area`, `peso`, `pressao-arterial`, `glicemia`, `exames`, `vacinas`
+  (dentro de `minha-area`), `receituario`, `relatorios`, `medico`, `admin`, `placeholder`
+- `core/`: `api.ts` (client HTTP), `auth.service.ts` + `auth.guard.ts` + `auth.interceptor.ts`,
+  `inactivity.service.ts`, `theme.ts`, `toast.service.ts`, `dates.ts` e um `*.service.ts` por dominio
+- `shared/ui/`: componentes reutilizaveis (button, card, dialog, input, select, combobox, multi-select, table,
+  chart, calendar, toast, alert-dialog, avatar, badge, checkbox, popover, spinner, alert)
+- `shared/widgets/`: `active-medications`, `blood-pressure-log`, `glucose-log`, `weight-log`,
+  `health-entry-modal`, `patient-link-dialog`, `prescription-form`, `public-campaigns`, `vaccination-wallet`
+- Grafico/exportacao: Chart.js (`shared/ui/chart.ts`), `jspdf` + `html2canvas` para PDF
 
 ## Comandos uteis
 
@@ -126,7 +153,9 @@ Padroes a preservar:
 
 ## Convenções de teste
 
-Detalhamento completo no bloco `Testing` de `openspec/config.yaml` (hoje ainda vazio — ver "Testes e validacao" acima).
+Nao existe suite automatizada no repositorio (nem no backend, nem specs no frontend). Validacao real hoje:
+build de cada workspace + verificacao manual. Detalhamento completo no bloco `Testing` de
+`openspec/config.yaml` (hoje ainda vazio — ver "Testes e validacao" acima).
 
 ## Workflow OpenSpec
 
@@ -139,12 +168,19 @@ Comandos (skills) disponiveis em `.opencode/commands` / `.opencode/skills`:
 - `/opsx-sync` - sincroniza delta specs para as specs principais
 - `/opsx-archive` - arquiva a change concluida
 
-Estrutura: `openspec/changes/<id>/` (proposal, tasks, specs/) e `openspec/specs/` (specs vigentes, hoje vazia).
+Estrutura: `openspec/changes/<id>/` (proposal, design, tasks, specs/) e `openspec/specs/` (specs vigentes ja sincronizados).
+
+Specs vigentes em `openspec/specs/`: `clinical-notes`, `doctor-panel`, `doctor-patient-links`, `medication-dashboard`,
+`prescription-book`.
+
+Changes ativas (tasks 100% concluidas, aguardando `/opsx-archive`): `doctor-patient-panel`, `prescription-book`,
+`prescription-registration-form`. `openspec/changes/archive/` esta vazio.
+
 CI: `.github/workflows/opencode.yml` responde a `/oc` e `/opencode` em comentarios de issue/PR.
 
 ## Projeto GitLab
 
-- Este repositorio esta no **GitHub**: `https://github.com/denisdmm/vitality-control.git`. Branch de trabalho: `develop` (com upstream `origin/develop`); `main` existe e é o `origin/HEAD`.
+- Este repositorio esta no **GitHub**: `https://github.com/denisdmm/vitality-control.git` (branch `main`).
 - Nao ha `.gitlab/`, templates de issue nem grupo de labels neste repositorio.
 - O bloco "Como usar o MCP GitLab" abaixo veio de outro contexto (host `gitlab.ccasj.intraer`); usar apenas se o MCP GitLab estiver habilitado na sessao.
 
