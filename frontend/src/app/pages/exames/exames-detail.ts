@@ -33,33 +33,35 @@ import { TABLE_IMPORTS } from '../../shared/ui/table';
       </app-card-header>
       <app-card-content>
         @if (subItems().length > 0) {
-          <table app-table>
-            <thead app-table-header>
-              <tr app-table-row>
-                <th app-table-head>Componente</th>
-                <th app-table-head>Resultado</th>
-                <th app-table-head>Val. de Referência</th>
-                <th app-table-head class="text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody app-table-body>
-              @for (item of subItems(); track item.id) {
+          <div class="overflow-x-auto">
+            <table app-table>
+              <thead app-table-header>
                 <tr app-table-row>
-                  <td app-table-cell class="font-medium">{{ item.name }}</td>
-                  <td app-table-cell>{{ item.result }}</td>
-                  <td app-table-cell>{{ item.reference }}</td>
-                  <td app-table-cell class="space-x-1 text-right">
-                    <button app-button variant="ghost" size="icon" (click)="openEdit(item)">
-                      <app-icon name="pencil" class="h-4 w-4" />
-                    </button>
-                    <button app-button variant="ghost" size="icon" (click)="askDelete(item)">
-                      <app-icon name="trash2" class="h-4 w-4" />
-                    </button>
-                  </td>
+                  <th app-table-head>Componente</th>
+                  <th app-table-head>Resultado</th>
+                  <th app-table-head>Val. de Referência</th>
+                  <th app-table-head class="text-right">Ações</th>
                 </tr>
-              }
-            </tbody>
-          </table>
+              </thead>
+              <tbody app-table-body>
+                @for (item of subItems(); track item.id) {
+                  <tr app-table-row>
+                    <td app-table-cell class="font-medium">{{ item.name }}</td>
+                    <td app-table-cell>{{ item.result }}</td>
+                    <td app-table-cell>{{ item.reference }}</td>
+                    <td app-table-cell class="space-x-1 text-right">
+                      <button app-button variant="ghost" size="icon" (click)="openEdit(item)">
+                        <app-icon name="pencil" class="h-4 w-4" />
+                      </button>
+                      <button app-button variant="ghost" size="icon" (click)="askDelete(item)">
+                        <app-icon name="trash2" class="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
         } @else {
           <div class="flex h-48 flex-col items-center justify-center p-8 text-center text-muted-foreground">
             <p>Nenhum item adicionado a este exame ainda.</p>

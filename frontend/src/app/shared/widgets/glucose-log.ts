@@ -56,7 +56,7 @@ interface GlucoseThreshold {
           </div>
         }
         @if (readings().length > 0) {
-          <div class="h-[200px] w-full">
+          <div class="h-[200px] min-w-0 w-full">
             <app-line-chart [options]="chartOptions()" />
           </div>
         } @else {

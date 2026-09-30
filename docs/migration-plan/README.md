@@ -540,6 +540,20 @@ body { font-family: 'Inter', sans-serif; }
   legado).
 - **ADR-006:** Gráficos escolhidos na Fase 1 (ngx-charts ou wrapper), mantendo
   a paleta `chart-1..5`.
+- **ADR-007:** Acesso ao prontuário em dois níveis. **Leitura:** qualquer
+  `MEDICO` abre qualquer paciente, `ADMINISTRADOR` também, e o `PACIENTE` só a
+  si mesmo — toda abertura por terceiro gera `PatientAuditEvent`
+  (`CHART_VIEWED`). **Escrita:** continua exigindo vínculo em `PatientDoctor`
+  (`assertDoctorCanAccess`), que segue N:N. `MEDICO` vincula a si mesmo
+  (`POST /doctor/patients/:id/links`, idempotente) ou assume o paciente
+  (`POST /doctor/patients/:id/transfer`), removendo os vínculos de outros
+  médicos, preservando os de administrador e a autoria de receitas já emitidas.
+  Módulo novo `doctor-panel` sob `/api/v1/doctor/*`; a ficha resumida
+  (`/patients/:id/summary`) concentra em uma chamada biometria de 90 dias
+  comparada ao período anterior, medicamentos ativos, receitas, exames com
+  subitens e anotações, e nunca devolve `fileStoredName`. `ClinicalNote`
+  pertence ao paciente (cascade), não ao vínculo: autor edita/apaga, admin
+  apaga, e a nota sobrevive ao fim do vínculo.
 
 ---
 

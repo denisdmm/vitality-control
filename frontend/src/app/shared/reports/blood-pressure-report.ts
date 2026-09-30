@@ -112,7 +112,7 @@ export function readingWithPulse(reading: { systolic?: number; diastolic?: numbe
 
         <div class="mt-12 border-t-2 border-dashed border-gray-400 px-8 pb-8 pt-8">
           <h2 class="mb-6 text-center text-xl font-bold">Resumo Gráfico (Média Diária)</h2>
-          <div class="h-[350px] w-full text-xs">
+          <div class="h-[350px] min-w-0 w-full text-xs">
             <app-line-chart [options]="chartOptions()" />
           </div>
         </div>

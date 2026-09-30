@@ -6,7 +6,8 @@ import { VitalsService } from '../../core/vitals.service';
 import { SharedDataService } from '../../core/shared-data.service';
 import { daysAgo, fmtIso, toYMD } from '../../core/dates';
 import type { DateRange } from '../../core/dates';
-import type { AdminPatient } from '../../models/user';
+import { DoctorPanelService } from '../../core/doctor-panel.service';
+import type { PanelPatient } from '../../models/doctor-panel';
 import type { PeriodName, VitalScore } from '../../models/vital';
 import { ButtonComponent } from '../../shared/ui/button';
 import { CardComponent, CardContentComponent, CardDescriptionComponent, CardHeaderComponent, CardTitleComponent } from '../../shared/ui/card';
@@ -138,13 +139,14 @@ function fmtIsoNo(d: Date): string {
 })
 export class MedicoPressaoArterialComponent {
   private readonly vitals = inject(VitalsService);
+  private readonly panel = inject(DoctorPanelService);
   private readonly sharedData = inject(SharedDataService);
   private readonly toast = inject(ToastService);
 
   readonly periods: PeriodName[] = ['manha', 'tarde', 'noite'];
   readonly fmtIso = fmtIso;
 
-  readonly patients = signal<AdminPatient[]>([]);
+  readonly patients = signal<PanelPatient[]>([]);
   readonly selectedId = signal<string>('');
   readonly vitalsOfPatient = signal<VitalScore[]>([]);
   readonly loading = signal(false);
@@ -161,7 +163,7 @@ export class MedicoPressaoArterialComponent {
   readonly reportEl = viewChild<ElementRef<HTMLDivElement>>('reportArea');
 
   readonly patientOptions = computed<SelectOption[]>(() =>
-    this.patients().map((p) => ({ value: p.id, label: p.fullName })),
+    this.patients().map((p) => ({ value: p.id, label: p.linkedToMe ? `${p.fullName} · seu` : p.fullName })),
   );
   readonly selectedName = () =>
     this.patients().find((p) => p.id === this.selectedId())?.fullName ?? 'Paciente';
@@ -190,7 +192,8 @@ export class MedicoPressaoArterialComponent {
 
   private async loadPatients(): Promise<void> {
     try {
-      this.patients.set(await this.vitals.patients());
+      const res = await this.panel.listPatients({ scope: 'all' });
+      this.patients.set(res.items);
     } catch {
       this.toast.error('Erro', 'Não foi possível carregar os pacientes.');
     }
