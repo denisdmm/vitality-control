@@ -67,8 +67,8 @@ export class UsersController {
   @Patch(':id')
   @Roles(Role.ADMINISTRADOR)
   @ApiOperation({ summary: 'Atualiza usuário (admin)' })
-  update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
-    return this.users.update(id, dto);
+  update(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string, @Body() dto: UpdateUserDto) {
+    return this.users.update(id, dto, actor.id);
   }
 
   @Delete(':id')

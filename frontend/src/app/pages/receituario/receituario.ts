@@ -96,76 +96,78 @@ function inputValue(event: Event): string {
               @if (rx.medications.length === 0) {
                 <p class="text-sm text-muted-foreground">Nenhum medicamento nesta receita.</p>
               } @else {
-                <table app-table>
-                  <thead app-table-header>
-                    <tr app-table-row>
-                      <th app-table-head>Nome</th>
-                      <th app-table-head class="hidden sm:table-cell">Dosagem</th>
-                      <th app-table-head class="hidden md:table-cell">Frequência</th>
-                      <th app-table-head class="hidden lg:table-cell">Duração</th>
-                      <th app-table-head>Horários</th>
-                      <th app-table-head class="text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody app-table-body>
-                    @for (med of rx.medications; track med.id) {
+                <div class="overflow-x-auto">
+                  <table app-table>
+                    <thead app-table-header>
                       <tr app-table-row>
-                        <td app-table-cell>
-                          <div class="flex flex-wrap items-center gap-1">
-                            <span class="font-medium">{{ med.name }}</span>
-                            @if (med.prescribedById) {
-                              <span app-badge variant="outline">prescrito</span>
-                            }
-                            @if (med.continuousUse) {
-                              <span app-badge variant="secondary">uso contínuo</span>
-                            }
-                          </div>
-                        </td>
-                        <td app-table-cell class="hidden sm:table-cell">{{ med.dosage }}</td>
-                        <td app-table-cell class="hidden md:table-cell">{{ med.frequency }}</td>
-                        <td app-table-cell class="hidden lg:table-cell">
-                          <span class="text-sm text-muted-foreground">{{ duration(med) }}</span>
-                        </td>
-                        <td app-table-cell>
-                          @if (med.schedules.length > 0) {
-                            <span class="flex flex-wrap gap-1">
-                              @for (s of med.schedules; track s.id) {
-                                <span class="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-mono text-xs">
-                                  {{ s.time }}
-                                  <button type="button" class="text-muted-foreground hover:text-foreground" (click)="removeTime(med, s.id)">
-                                    <app-icon name="x" class="h-3 w-3" />
-                                  </button>
-                                </span>
-                              }
-                            </span>
-                          } @else {
-                            <span class="text-sm text-muted-foreground">Sem horário</span>
-                          }
-                        </td>
-                        <td app-table-cell class="text-right">
-                          <div class="flex items-center justify-end gap-1">
-                            <input
-                              app-input
-                              class="h-8 w-24"
-                              placeholder="08:00"
-                              [value]="draftTime(med.id)"
-                              (input)="setDraft(med.id, inputValue($event))"
-                              (keyup.enter)="addTime(med)"
-                            />
-                            <button app-button variant="ghost" size="icon" (click)="addTime(med)">
-                              <app-icon name="plusCircle" class="h-4 w-4" />
-                            </button>
-                            @if (!med.prescribedById) {
-                              <button app-button variant="ghost" size="icon" (click)="removeMedication(med)">
-                                <app-icon name="trash2" class="h-4 w-4" />
-                              </button>
-                            }
-                          </div>
-                        </td>
+                        <th app-table-head>Nome</th>
+                        <th app-table-head class="hidden sm:table-cell">Dosagem</th>
+                        <th app-table-head class="hidden md:table-cell">Frequência</th>
+                        <th app-table-head class="hidden lg:table-cell">Duração</th>
+                        <th app-table-head>Horários</th>
+                        <th app-table-head class="text-right">Ações</th>
                       </tr>
-                    }
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody app-table-body>
+                      @for (med of rx.medications; track med.id) {
+                        <tr app-table-row>
+                          <td app-table-cell>
+                            <div class="flex flex-wrap items-center gap-1">
+                              <span class="font-medium">{{ med.name }}</span>
+                              @if (med.prescribedById) {
+                                <span app-badge variant="outline">prescrito</span>
+                              }
+                              @if (med.continuousUse) {
+                                <span app-badge variant="secondary">uso contínuo</span>
+                              }
+                            </div>
+                          </td>
+                          <td app-table-cell class="hidden sm:table-cell">{{ med.dosage }}</td>
+                          <td app-table-cell class="hidden md:table-cell">{{ med.frequency }}</td>
+                          <td app-table-cell class="hidden lg:table-cell">
+                            <span class="text-sm text-muted-foreground">{{ duration(med) }}</span>
+                          </td>
+                          <td app-table-cell>
+                            @if (med.schedules.length > 0) {
+                              <span class="flex flex-wrap gap-1">
+                                @for (s of med.schedules; track s.id) {
+                                  <span class="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-mono text-xs">
+                                    {{ s.time }}
+                                    <button type="button" class="text-muted-foreground hover:text-foreground" (click)="removeTime(med, s.id)">
+                                      <app-icon name="x" class="h-3 w-3" />
+                                    </button>
+                                  </span>
+                                }
+                              </span>
+                            } @else {
+                              <span class="text-sm text-muted-foreground">Sem horário</span>
+                            }
+                          </td>
+                          <td app-table-cell class="text-right">
+                            <div class="flex items-center justify-end gap-1">
+                              <input
+                                app-input
+                                class="h-8 w-24"
+                                placeholder="08:00"
+                                [value]="draftTime(med.id)"
+                                (input)="setDraft(med.id, inputValue($event))"
+                                (keyup.enter)="addTime(med)"
+                              />
+                              <button app-button variant="ghost" size="icon" (click)="addTime(med)">
+                                <app-icon name="plusCircle" class="h-4 w-4" />
+                              </button>
+                              @if (!med.prescribedById) {
+                                <button app-button variant="ghost" size="icon" (click)="removeMedication(med)">
+                                  <app-icon name="trash2" class="h-4 w-4" />
+                                </button>
+                              }
+                            </div>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
               }
             </app-card-content>
           </app-card>

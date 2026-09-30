@@ -47,36 +47,38 @@ import { TABLE_IMPORTS } from '../ui/table';
               <span>Alguns medicamentos ainda não têm horário definido. Ajuste no receituário.</span>
             </div>
           }
-          <table app-table>
-            <thead app-table-header>
-              <tr app-table-row>
-                <th app-table-head>Nome</th>
-                <th app-table-head class="hidden sm:table-cell">Dosagem</th>
-                <th app-table-head class="hidden md:table-cell">Frequência</th>
-                <th app-table-head class="hidden lg:table-cell">Duração</th>
-                <th app-table-head>Horários</th>
-              </tr>
-            </thead>
-            <tbody app-table-body>
-              @for (med of active(); track med.id) {
+          <div class="overflow-x-auto">
+            <table app-table>
+              <thead app-table-header>
                 <tr app-table-row>
-                  <td app-table-cell class="font-medium">{{ med.name }}</td>
-                  <td app-table-cell class="hidden sm:table-cell">{{ med.dosage }}</td>
-                  <td app-table-cell class="hidden md:table-cell">{{ med.frequency }}</td>
-                  <td app-table-cell class="hidden lg:table-cell">
-                    <span class="text-sm text-muted-foreground">{{ formatDuration(med) }}</span>
-                  </td>
-                  <td app-table-cell>
-                    @if (med.schedules.length > 0) {
-                      <span class="font-mono text-sm">{{ times(med) }}</span>
-                    } @else {
-                      <span class="text-sm text-muted-foreground">Sem horário definido</span>
-                    }
-                  </td>
+                  <th app-table-head>Nome</th>
+                  <th app-table-head class="hidden sm:table-cell">Dosagem</th>
+                  <th app-table-head class="hidden md:table-cell">Frequência</th>
+                  <th app-table-head class="hidden lg:table-cell">Duração</th>
+                  <th app-table-head>Horários</th>
                 </tr>
-              }
-            </tbody>
-          </table>
+              </thead>
+              <tbody app-table-body>
+                @for (med of active(); track med.id) {
+                  <tr app-table-row>
+                    <td app-table-cell class="font-medium">{{ med.name }}</td>
+                    <td app-table-cell class="hidden sm:table-cell">{{ med.dosage }}</td>
+                    <td app-table-cell class="hidden md:table-cell">{{ med.frequency }}</td>
+                    <td app-table-cell class="hidden lg:table-cell">
+                      <span class="text-sm text-muted-foreground">{{ formatDuration(med) }}</span>
+                    </td>
+                    <td app-table-cell>
+                      @if (med.schedules.length > 0) {
+                        <span class="font-mono text-sm">{{ times(med) }}</span>
+                      } @else {
+                        <span class="text-sm text-muted-foreground">Sem horário definido</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
         } @else {
           <div class="flex h-full flex-1 flex-col items-center justify-center p-8 text-center text-muted-foreground">
             <app-icon name="pill" class="mb-4 h-12 w-12" />

@@ -4,12 +4,12 @@ import { PrescriptionsService } from '../../core/prescriptions.service';
 import { ToastService } from '../../core/toast.service';
 import { AuthService } from '../../core/auth.service';
 import { VitalsService } from '../../core/vitals.service';
-import type { AdminPatient } from '../../models/user';
+import { DoctorPanelService } from '../../core/doctor-panel.service';
+import type { PanelPatient } from '../../models/doctor-panel';
 import { formatDuration, type Prescription, type PrescriptionMedication } from '../../models/prescription';
 import { BadgeComponent } from '../../shared/ui/badge';
 import { ButtonComponent } from '../../shared/ui/button';
 import { CardComponent, CardContentComponent, CardDescriptionComponent, CardHeaderComponent, CardTitleComponent } from '../../shared/ui/card';
-import { InputComponent } from '../../shared/ui/input';
 import { SelectComponent, SelectOption } from '../../shared/ui/select';
 import { IconComponent } from '../../shared/icon.component';
 import { SpinnerComponent } from '../../shared/ui/spinner';
@@ -26,7 +26,7 @@ function inputValue(event: Event): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     DatePipe, BadgeComponent, ButtonComponent, CardComponent, CardContentComponent,
-    CardDescriptionComponent, CardHeaderComponent, CardTitleComponent, InputComponent,
+    CardDescriptionComponent, CardHeaderComponent, CardTitleComponent,
     SelectComponent, IconComponent, PrescriptionFormComponent, SpinnerComponent,
     TABLE_IMPORTS,
   ],
@@ -110,47 +110,49 @@ function inputValue(event: Event): string {
                 @if (rx.medications.length === 0) {
                   <p class="text-sm text-muted-foreground">Nenhum medicamento nesta receita.</p>
                 } @else {
-                  <table app-table>
-                    <thead app-table-header>
-                      <tr app-table-row>
-                        <th app-table-head>Nome</th>
-                        <th app-table-head class="hidden sm:table-cell">Dosagem</th>
-                        <th app-table-head class="hidden md:table-cell">Frequência</th>
-                        <th app-table-head class="hidden lg:table-cell">Duração</th>
-                        <th app-table-head>Origem</th>
-                        <th app-table-head>Horários</th>
-                      </tr>
-                    </thead>
-                    <tbody app-table-body>
-                      @for (med of rx.medications; track med.id) {
+                  <div class="overflow-x-auto">
+                    <table app-table>
+                      <thead app-table-header>
                         <tr app-table-row>
-                          <td app-table-cell>
-                            <div class="flex flex-wrap items-center gap-1">
-                              <span class="font-medium">{{ med.name }}</span>
-                              @if (med.continuousUse) {
-                                <span app-badge variant="secondary">uso contínuo</span>
-                              }
-                            </div>
-                          </td>
-                          <td app-table-cell class="hidden sm:table-cell">{{ med.dosage }}</td>
-                          <td app-table-cell class="hidden md:table-cell">{{ med.frequency }}</td>
-                          <td app-table-cell class="hidden lg:table-cell">
-                            <span class="text-sm text-muted-foreground">{{ duration(med) }}</span>
-                          </td>
-                          <td app-table-cell>
-                            {{ med.prescribedById === myId() ? 'prescrito por você' : 'lançado pelo paciente' }}
-                          </td>
-                          <td app-table-cell>
-                            @if (med.schedules.length > 0) {
-                              <span class="font-mono text-sm">{{ times(med) }}</span>
-                            } @else {
-                              <span class="text-sm text-muted-foreground">Sem horário</span>
-                            }
-                          </td>
+                          <th app-table-head>Nome</th>
+                          <th app-table-head class="hidden sm:table-cell">Dosagem</th>
+                          <th app-table-head class="hidden md:table-cell">Frequência</th>
+                          <th app-table-head class="hidden lg:table-cell">Duração</th>
+                          <th app-table-head>Origem</th>
+                          <th app-table-head>Horários</th>
                         </tr>
-                      }
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody app-table-body>
+                        @for (med of rx.medications; track med.id) {
+                          <tr app-table-row>
+                            <td app-table-cell>
+                              <div class="flex flex-wrap items-center gap-1">
+                                <span class="font-medium">{{ med.name }}</span>
+                                @if (med.continuousUse) {
+                                  <span app-badge variant="secondary">uso contínuo</span>
+                                }
+                              </div>
+                            </td>
+                            <td app-table-cell class="hidden sm:table-cell">{{ med.dosage }}</td>
+                            <td app-table-cell class="hidden md:table-cell">{{ med.frequency }}</td>
+                            <td app-table-cell class="hidden lg:table-cell">
+                              <span class="text-sm text-muted-foreground">{{ duration(med) }}</span>
+                            </td>
+                            <td app-table-cell>
+                              {{ med.prescribedById === myId() ? 'prescrito por você' : 'lançado pelo paciente' }}
+                            </td>
+                            <td app-table-cell>
+                              @if (med.schedules.length > 0) {
+                                <span class="font-mono text-sm">{{ times(med) }}</span>
+                              } @else {
+                                <span class="text-sm text-muted-foreground">Sem horário</span>
+                              }
+                            </td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
                 }
               </app-card-content>
             </app-card>
@@ -179,10 +181,10 @@ function inputValue(event: Event): string {
 export class MedicoReceituarioComponent {
   private readonly service = inject(PrescriptionsService);
   private readonly auth = inject(AuthService);
-  private readonly vitals = inject(VitalsService);
+  private readonly panel = inject(DoctorPanelService);
   private readonly toast = inject(ToastService);
 
-  readonly patients = signal<AdminPatient[]>([]);
+  readonly patients = signal<PanelPatient[]>([]);
   readonly selectedId = signal('');
   readonly prescriptions = signal<Prescription[]>([]);
   readonly active = signal<PrescriptionMedication[]>([]);
@@ -198,8 +200,10 @@ export class MedicoReceituarioComponent {
   /** O médico autenticado; usado para marcar "prescrito por você" e o status. */
   readonly myId = computed(() => this.auth.user()?.id ?? '');
 
+  // O "· seu" evita que o médico emita receita de um paciente que ainda não
+  // assumiu; quem não é dele volta 403 ao salvar.
   readonly patientOptions = computed<SelectOption[]>(() =>
-    this.patients().map((p) => ({ value: p.id, label: p.fullName })),
+    this.patients().map((p) => ({ value: p.id, label: p.linkedToMe ? `${p.fullName} · seu` : p.fullName })),
   );
   readonly patientName = computed(
     () => this.patients().find((p) => p.id === this.selectedId())?.fullName ?? 'Paciente',
@@ -211,8 +215,8 @@ export class MedicoReceituarioComponent {
 
   private async loadPatients(): Promise<void> {
     try {
-      const list = await this.vitals.patients();
-      this.patients.set(list);
+      const res = await this.panel.listPatients({ scope: 'all' });
+      this.patients.set(res.items);
     } catch {
       this.toast.error('Erro', 'Não foi possível carregar os pacientes.');
     }

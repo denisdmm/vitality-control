@@ -11,6 +11,7 @@ import { VaccinesModule } from './vaccines/vaccines.module';
 import { ExamTypesModule } from './exam-types/exam-types.module';
 import { SharedDataModule } from './shared-data/shared-data.module';
 import { ReportsModule } from './reports/reports.module';
+import { DoctorPanelModule } from './doctor-panel/doctor-panel.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ReportsModule } from './reports/reports.module';
     ExamTypesModule,
     SharedDataModule,
     ReportsModule,
+    DoctorPanelModule,
   ],
 })
 export class AppModule {}

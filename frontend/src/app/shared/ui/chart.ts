@@ -41,15 +41,17 @@ export interface LineChartOptions {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="w-full" [style.height.px]="height()">
-      <canvas #canvas></canvas>
+    <div #container class="min-w-0 overflow-hidden" [style.height.px]="height()">
+      <canvas #canvas class="block max-w-full"></canvas>
     </div>
   `,
 })
 export class LineChartComponent implements OnDestroy {
   readonly options = input<LineChartOptions | null>(null);
   readonly canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
+  readonly container = viewChild.required<ElementRef<HTMLDivElement>>('container');
   private chart: Chart | null = null;
+  private observer: ResizeObserver | null = null;
 
   readonly height = computed(() => this.options()?.height ?? 300);
 
@@ -61,9 +63,20 @@ export class LineChartComponent implements OnDestroy {
         this.render(opts, el.nativeElement);
       }
     });
+
+    // O chart.js só reage à janela; com menu em drawer, troca de coluna no grid
+    // ou giro do aparelho o contêiner muda de largura sem a janela mudar.
+    effect(() => {
+      const el = this.container();
+      if (!el || this.observer) return;
+      this.observer = new ResizeObserver(() => this.chart?.resize());
+      this.observer.observe(el.nativeElement);
+    });
   }
 
   ngOnDestroy(): void {
+    this.observer?.disconnect();
+    this.observer = null;
     this.chart?.destroy();
   }
 

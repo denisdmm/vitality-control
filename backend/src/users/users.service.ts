@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, Role } from '@prisma/client';
+import { PatientAuditAction, Prisma, Role } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto, UpdateUserDto } from './dto/create-user.dto';
@@ -108,7 +108,7 @@ export class UsersService {
     return user;
   }
 
-  async update(id: string, dto: UpdateUserDto) {
+  async update(id: string, dto: UpdateUserDto, actorId?: string) {
     const existing = await this.prisma.user.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Usuário não encontrado');
     await this.assertUnique(dto.name, dto.crm, id);
@@ -130,9 +130,24 @@ export class UsersService {
       updatedAt: new Date(),
     };
 
+    const linkEvents: { action: PatientAuditAction; doctorId: string | null }[] = [];
     if (doctorIds && !dto.keepDoctorIdsIntact) {
       await this.assertDoctorsExist(doctorIds);
       const newRole = dto.role ?? existing.role;
+      const previous = await this.prisma.patientDoctor.findMany({
+        where: { patientId: id },
+        select: { doctorId: true },
+      });
+      for (const link of previous) {
+        if (!doctorIds.includes(link.doctorId)) {
+          linkEvents.push({ action: PatientAuditAction.LINK_REMOVED, doctorId: link.doctorId });
+        }
+      }
+      for (const doctorId of doctorIds) {
+        if (!previous.some((link) => link.doctorId === doctorId)) {
+          linkEvents.push({ action: PatientAuditAction.LINK_ADDED, doctorId });
+        }
+      }
       data.patientLinks =
         newRole === Role.PACIENTE
           ? {
@@ -142,7 +157,24 @@ export class UsersService {
           : { deleteMany: {} };
     }
 
-    return this.prisma.user.update({ where: { id }, data, select: PUBLIC_SELECT });
+    const updated = await this.prisma.user.update({ where: { id }, data, select: PUBLIC_SELECT });
+
+    // Troca de vínculos feita pelo admin também deixa rastro (spec doctor-patient-links).
+    if (actorId && linkEvents.length > 0) {
+      const patient = await this.prisma.user.findUnique({ where: { id }, select: { role: true } });
+      if (patient?.role === Role.PACIENTE) {
+        await this.prisma.patientAuditEvent.createMany({
+          data: linkEvents.map((e) => ({
+            patientId: id,
+            actorId,
+            action: e.action,
+            subjectDoctorId: e.doctorId,
+          })),
+        });
+      }
+    }
+
+    return updated;
   }
 
   async remove(id: string) {

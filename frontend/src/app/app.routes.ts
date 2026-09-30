@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard } from './core/auth.guard';
+import { authGuard, guestGuard, roleGuard } from './core/auth.guard';
 import { LayoutComponent } from './layout/layout';
 import { LoginComponent } from './pages/login/login';
 
@@ -27,7 +27,7 @@ export const routes: Routes = [
       },
       {
         path: 'exames/:id',
-        data: { title: 'Detalhes do Exame' },
+        data: { title: 'Detalhes do Exame', backTo: '/exames' },
         loadComponent: () => import('./pages/exames/exames-detail').then((m) => m.ExamesDetailComponent),
       },
       {
@@ -78,15 +78,29 @@ export const routes: Routes = [
       {
         path: 'medico',
         pathMatch: 'full',
-        redirectTo: 'medico/pressao-arterial',
+        redirectTo: 'medico/pacientes',
+      },
+      {
+        path: 'medico/pacientes',
+        canActivate: [roleGuard('MEDICO', 'ADMINISTRADOR')],
+        data: { title: 'Meus Pacientes' },
+        loadComponent: () => import('./pages/medico/pacientes').then((m) => m.MedicoPacientesComponent),
+      },
+      {
+        path: 'medico/pacientes/:patientId/ficha',
+        canActivate: [roleGuard('MEDICO', 'ADMINISTRADOR')],
+        data: { title: 'Ficha do Paciente', backTo: '/medico/pacientes' },
+        loadComponent: () => import('./pages/medico/paciente-ficha').then((m) => m.MedicoPacienteFichaComponent),
       },
       {
         path: 'medico/receituario',
+        canActivate: [roleGuard('MEDICO', 'ADMINISTRADOR')],
         data: { title: 'Receituário dos Pacientes' },
         loadComponent: () => import('./pages/medico/receituario').then((m) => m.MedicoReceituarioComponent),
       },
       {
         path: 'medico/pressao-arterial',
+        canActivate: [roleGuard('MEDICO', 'ADMINISTRADOR')],
         data: { title: 'Pressão dos Pacientes' },
         loadComponent: () => import('./pages/medico/pressao-arterial').then((m) => m.MedicoPressaoArterialComponent),
       },
@@ -97,7 +111,7 @@ export const routes: Routes = [
       },
       {
         path: 'admin/indices',
-        data: { title: 'Índices de Saúde' },
+        data: { title: 'Índices de Saúde', backTo: '/admin' },
         loadComponent: () => import('./pages/admin/indices').then((m) => m.AdminIndicesComponent),
       },
     ],
