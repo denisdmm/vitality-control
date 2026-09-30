@@ -50,7 +50,7 @@ function roundAvg(values: number[]): number {
 
       <app-card-content class="flex flex-1 flex-col gap-4">
         @if (chartData().length > 0 && readings().length > 0) {
-          <div class="h-[300px] w-full pt-4">
+          <div class="h-[300px] min-w-0 w-full pt-4">
             <app-line-chart [options]="chartOptions()" />
           </div>
         } @else {

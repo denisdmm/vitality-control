@@ -107,7 +107,7 @@ export class GlucoseReadingCellComponent {
         @if (loading()) {
           <div class="flex h-40 items-center justify-center text-muted-foreground">Carregando...</div>
         } @else {
-          <div class="overflow-hidden rounded-md border">
+          <div class="overflow-x-auto rounded-md border">
             <table app-table>
               <thead app-table-header>
                 <tr app-table-row class="bg-muted">

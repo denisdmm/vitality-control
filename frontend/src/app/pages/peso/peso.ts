@@ -62,36 +62,38 @@ function imcCategory(imcValue: number): { label: string; colorClass: string } {
           </button>
         </app-card-header>
         <app-card-content>
-          <table app-table>
-            <thead app-table-header>
-              <tr app-table-row>
-                <th app-table-head>Data</th>
-                <th app-table-head>Peso (kg)</th>
-                <th app-table-head>IMC</th>
-                <th app-table-head>Classificação</th>
-                <th app-table-head class="text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody app-table-body>
-              @for (entry of entries(); track entry.id) {
+          <div class="overflow-x-auto">
+            <table app-table>
+              <thead app-table-header>
                 <tr app-table-row>
-                  <td app-table-cell>{{ fmtIsoShort(entry.date) }}</td>
-                  <td app-table-cell class="font-medium">{{ entry.weight }} kg</td>
-                  <td app-table-cell>{{ imcOf(entry) ?? '-' }}</td>
-                  <td app-table-cell [class]="categoryOf(entry)?.colorClass">{{ categoryOf(entry)?.label ?? '-' }}</td>
-                  <td app-table-cell class="text-right">
-                    <button app-button variant="ghost" size="icon" (click)="onDelete(entry)">
-                      <app-icon name="trash2" class="h-4 w-4" />
-                    </button>
-                  </td>
+                  <th app-table-head>Data</th>
+                  <th app-table-head>Peso (kg)</th>
+                  <th app-table-head>IMC</th>
+                  <th app-table-head>Classificação</th>
+                  <th app-table-head class="text-right">Ações</th>
                 </tr>
-              } @empty {
-                <tr app-table-row>
-                  <td app-table-cell class="py-10 text-center text-muted-foreground" colspan="5">Nenhum registro.</td>
-                </tr>
-              }
-            </tbody>
-          </table>
+              </thead>
+              <tbody app-table-body>
+                @for (entry of entries(); track entry.id) {
+                  <tr app-table-row>
+                    <td app-table-cell>{{ fmtIsoShort(entry.date) }}</td>
+                    <td app-table-cell class="font-medium">{{ entry.weight }} kg</td>
+                    <td app-table-cell>{{ imcOf(entry) ?? '-' }}</td>
+                    <td app-table-cell [class]="categoryOf(entry)?.colorClass">{{ categoryOf(entry)?.label ?? '-' }}</td>
+                    <td app-table-cell class="text-right">
+                      <button app-button variant="ghost" size="icon" (click)="onDelete(entry)">
+                        <app-icon name="trash2" class="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr app-table-row>
+                    <td app-table-cell class="py-10 text-center text-muted-foreground" colspan="5">Nenhum registro.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
         </app-card-content>
       </app-card>
     </div>

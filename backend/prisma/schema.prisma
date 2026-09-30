@@ -17,10 +17,22 @@ enum Role {
   ADMINISTRADOR
 }
 
+enum PatientAuditAction {
+  LINK_ADDED
+  LINK_REMOVED
+  PATIENT_TRANSFERRED
+  CHART_VIEWED
+}
+
 enum HealthRecordStatus {
   SOLICITADO
   AGENDADO
   REALIZADO
+}
+
+enum PrescriptionStatus {
+  ATIVA
+  ENCERRADA
 }
 
 // ─────────────────────────────────────────────
@@ -50,20 +62,65 @@ model User {
   vaccines       Vaccine[]
   vitals         VitalScore[]
 
+  notesAsPatient       ClinicalNote[]     @relation("notePatient")
+  notesAuthored        ClinicalNote[]     @relation("noteAuthor")
+  auditAsPatient       PatientAuditEvent[] @relation("auditPatient")
+  auditPerformed       PatientAuditEvent[] @relation("auditActor")
+  auditAsDoctor        PatientAuditEvent[] @relation("auditSubjectDoctor")
+
+  prescriptionsAsPatient Prescription[] @relation("prescriptionPatient")
+  prescriptionsAsDoctor  Prescription[] @relation("prescriptionDoctor")
+  prescriptionsCreated  Prescription[] @relation("prescriptionAuthor")
+  prescribedMedications  Medication[]   @relation("medicationPrescriber")
+
   @@map("users")
 }
 
 // N:N paciente↔médico — origem: users.accounts.{id}.doctorIds[]
 model PatientDoctor {
-  id        String @id @default(uuid())
-  patientId String @map("patient_id")
-  doctorId  String @map("doctor_id")
-  patient   User   @relation("patient", fields: [patientId], references: [id], onDelete: Cascade)
-  doctor    User   @relation("doctor", fields: [doctorId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid())
+  patientId String   @map("patient_id")
+  doctorId  String   @map("doctor_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  patient   User     @relation("patient", fields: [patientId], references: [id], onDelete: Cascade)
+  doctor    User     @relation("doctor", fields: [doctorId], references: [id], onDelete: Cascade)
 
   @@unique([patientId, doctorId])
   @@index([doctorId])
+  @@index([patientId])
   @@map("patient_doctors")
+}
+
+// Anotação clínica do prontuário — pertence ao paciente, não ao vínculo que a originou
+model ClinicalNote {
+  id        String   @id @default(uuid())
+  patientId String   @map("patient_id")
+  authorId  String   @map("author_id")
+  body      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  patient User @relation("notePatient", fields: [patientId], references: [id], onDelete: Cascade)
+  author  User @relation("noteAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([patientId, createdAt])
+  @@map("clinical_notes")
+}
+
+// Trilha única para mudanças de vínculo e para consulta de prontuário por terceiro
+model PatientAuditEvent {
+  id               String           @id @default(uuid())
+  patientId        String           @map("patient_id")
+  actorId          String           @map("actor_id")
+  subjectDoctorId  String?          @map("subject_doctor_id")
+  action           PatientAuditAction
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  patient          User             @relation("auditPatient", fields: [patientId], references: [id], onDelete: Cascade)
+  actor            User             @relation("auditActor", fields: [actorId], references: [id], onDelete: Cascade)
+  subjectDoctor    User?            @relation("auditSubjectDoctor", fields: [subjectDoctorId], references: [id], onDelete: SetNull)
+
+  @@index([patientId, createdAt])
+  @@map("patient_audit_events")
 }
 
 model HealthRecord {
@@ -115,18 +172,64 @@ model VitalScore {
   @@map("vital_scores")
 }
 
-// origem: {uid}/medications — inconsistência de path do legado resolvida p/ FK
-model Medication {
-  id        String @id @default(uuid())
-  userId    String @map("user_id")
-  name      String
-  dosage    String
-  frequency String
+// Receituário — 1 PDF por receita, com medicamentos e horários de tomada
+model Prescription {
+  id              String             @id @default(uuid())
+  patientId       String             @map("patient_id")
+  doctorId        String?            @map("doctor_id")
+  issuedAt        DateTime           @default(now()) @map("issued_at") @db.Timestamptz
+  status          PrescriptionStatus @default(ATIVA)
+  fileStoredName  String?            @map("file_stored_name")
+  fileDisplayName String?            @map("file_display_name")
+  fileMimeType    String?            @map("file_mime_type")
+  fileSize        Int?               @map("file_size")
+  createdById     String             @map("created_by_id")
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patient     User         @relation("prescriptionPatient", fields: [patientId], references: [id], onDelete: Cascade)
+  doctor      User?        @relation("prescriptionDoctor", fields: [doctorId], references: [id], onDelete: SetNull)
+  createdBy   User         @relation("prescriptionAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+  medications Medication[]
+
+  @@index([patientId, status])
+  @@index([doctorId])
+  @@map("prescriptions")
+}
+
+// origem: {uid}/medications — item do receituário
+model Medication {
+  id             String  @id @default(uuid())
+  userId         String  @map("user_id")
+  prescriptionId String  @map("prescription_id")
+  name           String
+  dosage         String
+  frequency      String
+  continuousUse  Boolean @default(false) @map("continuous_use")
+  durationDays   Int?    @map("duration_days")
+  prescribedById String? @map("prescribed_by_id")
+
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prescription Prescription         @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  prescribedBy User?                @relation("medicationPrescriber", fields: [prescribedById], references: [id], onDelete: SetNull)
+  schedules    MedicationSchedule[]
 
   @@index([userId])
+  @@index([prescriptionId])
+  @@index([userId, continuousUse])
   @@map("medications")
+}
+
+// Horário de tomada "HH:mm" — mesmo horário vale para todos os dias
+model MedicationSchedule {
+  id           String @id @default(uuid())
+  medicationId String @map("medication_id")
+  time         String
+
+  medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+
+  @@unique([medicationId, time])
+  @@map("medication_schedules")
 }
 
 // origem: {uid}/vaccines

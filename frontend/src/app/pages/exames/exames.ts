@@ -79,51 +79,53 @@ type ModalMode = 'add' | 'schedule' | 'result';
               <p>Nenhum exame encontrado com o status "{{ STATUS_LABEL[activeTab()] }}".</p>
             </div>
           } @else {
-            <table app-table>
-              <thead app-table-header>
-                <tr app-table-row>
-                  <th app-table-head>Exame</th>
-                  <th app-table-head class="hidden sm:table-cell">Solicitado por</th>
-                  <th app-table-head>{{ activeTab() === 'SOLICITADO' ? 'Data da Solicitação' : 'Data do Exame' }}</th>
-                  @if (activeTab() === 'REALIZADO') {
-                    <th app-table-head>Resultado</th>
-                  }
-                  <th app-table-head class="text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody app-table-body>
-                @for (rec of recordsFor(activeTab()); track rec.id) {
-                  <tr app-table-row class="cursor-pointer" (click)="openDetails(rec.id)">
-                    <td app-table-cell class="font-medium">{{ rec.name }}</td>
-                    <td app-table-cell class="hidden sm:table-cell">{{ rec.requestingDoctorName || '-' }}</td>
-                    <td app-table-cell>{{ fmtIso(rec.examDate || rec.requestDate) }}</td>
+            <div class="overflow-x-auto">
+              <table app-table>
+                <thead app-table-header>
+                  <tr app-table-row>
+                    <th app-table-head>Exame</th>
+                    <th app-table-head class="hidden sm:table-cell">Solicitado por</th>
+                    <th app-table-head>{{ activeTab() === 'SOLICITADO' ? 'Data da Solicitação' : 'Data do Exame' }}</th>
                     @if (activeTab() === 'REALIZADO') {
-                      <td app-table-cell class="max-w-[150px] truncate">{{ rec.result }}</td>
+                      <th app-table-head>Resultado</th>
                     }
-                    <td app-table-cell class="space-x-1 text-right">
-                      @if (activeTab() === 'SOLICITADO') {
-                        <button app-button size="sm" variant="outline" (click)="openModal('schedule', rec); stop($event)">
-                          <app-icon name="calendar" class="mr-2 h-4 w-4" /> Agendar
-                        </button>
-                      }
-                      @if (activeTab() === 'AGENDADO') {
-                        <button app-button size="sm" variant="outline" (click)="openModal('result', rec); stop($event)">
-                          <app-icon name="fileText" class="mr-2 h-4 w-4" /> Registrar Resultado
-                        </button>
-                      }
-                      @if (activeTab() === 'REALIZADO') {
-                        <button app-button size="sm" variant="outline" (click)="openDetails(rec.id); stop($event)">
-                          <app-icon name="arrowRight" class="h-4 w-4" />
-                        </button>
-                      }
-                      <button app-button variant="ghost" size="icon" (click)="askDelete(rec); stop($event)">
-                        <app-icon name="trash2" class="h-4 w-4" />
-                      </button>
-                    </td>
+                    <th app-table-head class="text-right">Ações</th>
                   </tr>
-                }
-              </tbody>
-            </table>
+                </thead>
+                <tbody app-table-body>
+                  @for (rec of recordsFor(activeTab()); track rec.id) {
+                    <tr app-table-row class="cursor-pointer" (click)="openDetails(rec.id)">
+                      <td app-table-cell class="font-medium">{{ rec.name }}</td>
+                      <td app-table-cell class="hidden sm:table-cell">{{ rec.requestingDoctorName || '-' }}</td>
+                      <td app-table-cell>{{ fmtIso(rec.examDate || rec.requestDate) }}</td>
+                      @if (activeTab() === 'REALIZADO') {
+                        <td app-table-cell class="max-w-[150px] truncate">{{ rec.result }}</td>
+                      }
+                      <td app-table-cell class="space-x-1 text-right">
+                        @if (activeTab() === 'SOLICITADO') {
+                          <button app-button size="sm" variant="outline" (click)="openModal('schedule', rec); stop($event)">
+                            <app-icon name="calendar" class="mr-2 h-4 w-4" /> Agendar
+                          </button>
+                        }
+                        @if (activeTab() === 'AGENDADO') {
+                          <button app-button size="sm" variant="outline" (click)="openModal('result', rec); stop($event)">
+                            <app-icon name="fileText" class="mr-2 h-4 w-4" /> Registrar Resultado
+                          </button>
+                        }
+                        @if (activeTab() === 'REALIZADO') {
+                          <button app-button size="sm" variant="outline" (click)="openDetails(rec.id); stop($event)">
+                            <app-icon name="arrowRight" class="h-4 w-4" />
+                          </button>
+                        }
+                        <button app-button variant="ghost" size="icon" (click)="askDelete(rec); stop($event)">
+                          <app-icon name="trash2" class="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
           }
         </div>
       </app-card-content>

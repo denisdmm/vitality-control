@@ -20,6 +20,6 @@
 		"prisma:seed": "npm run prisma:seed -w backend"
 	},
 	"engines": {
-		"node": ">=20"
+		"node": "22.x"
 	}
 }

@@ -1,17 +1,3 @@
-export interface Medication {
-  id: string;
-  userId: string;
-  name: string;
-  dosage: string;
-  frequency: string;
-}
-
-export interface CreateMedicationDto {
-  name: string;
-  dosage: string;
-  frequency: string;
-}
-
 export interface Vaccine {
   id: string;
   userId: string;

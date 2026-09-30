@@ -1,55 +1,54 @@
 <div class="flex h-dvh">
-  <!-- Sidebar -->
-  <aside class="hidden w-60 shrink-0 border-r bg-sidebar text-sidebar-foreground md:flex md:flex-col">
-    <div class="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
-      <svg
-        class="h-8 w-8 text-sidebar-primary"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-        <path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27" />
-      </svg>
-      <span class="text-sm font-semibold leading-tight">Central de Vitalidade</span>
-    </div>
-
-    <nav class="flex-1 space-y-1 overflow-y-auto p-3">
-      @for (item of visibleMenu(); track item.path) {
-        <a
-          [routerLink]="item.path"
-          routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-          [routerLinkActiveOptions]="{ exact: item.exact === true }"
-          class="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-        >
-          {{ item.title }}
-        </a>
-      }
-    </nav>
-
-    <div class="border-t border-sidebar-border p-3">
-      <div class="flex items-center gap-3 rounded-md px-2 py-2">
-        <div
-          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-xs font-semibold text-sidebar-primary-foreground"
-        >
-          {{ (user()?.fullName || user()?.name || '?').charAt(0).toUpperCase() }}
-        </div>
-        <div class="min-w-0 flex-1">
-          <p class="truncate text-sm font-medium">{{ user()?.fullName }}</p>
-          <p class="truncate text-xs text-sidebar-foreground/60">{{ user()?.role }}</p>
-        </div>
-      </div>
-    </div>
+  <!-- Sidebar fixa: desktop -->
+  <aside
+    class="hidden w-60 shrink-0 border-r bg-sidebar text-sidebar-foreground md:flex md:flex-col"
+  >
+    <app-nav-panel [items]="visibleMenu()" [user]="user()" />
   </aside>
+
+  <!-- Drawer: abaixo de 768px, o mesmo menu por cima do conteúdo -->
+  @if (drawerOpen()) {
+    <div class="fixed inset-0 z-40 bg-black/50 md:hidden" (click)="closeDrawer()"></div>
+    <aside
+      class="fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r bg-sidebar text-sidebar-foreground md:hidden"
+    >
+      <app-nav-panel
+        [items]="visibleMenu()"
+        [user]="user()"
+        [closable]="true"
+        (navigated)="closeDrawer()"
+        (closed)="closeDrawer()" />
+    </aside>
+  }
 
   <div class="flex min-w-0 flex-1 flex-col">
     <!-- Header -->
-    <header class="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-card px-6">
-      <h1 class="flex-1 truncate text-lg font-semibold tracking-tight">{{ pageTitle() }}</h1>
+    <header class="sticky top-0 z-30 flex h-16 items-center gap-2 border-b bg-card px-4 sm:gap-4 sm:px-6">
+      <button
+        type="button"
+        (click)="openDrawer()"
+        class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground md:hidden"
+        aria-label="Abrir menu"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
+      @if (backTo()) {
+        <button
+          type="button"
+          (click)="goBack()"
+          class="inline-flex h-9 shrink-0 items-center gap-1 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+          <span class="hidden sm:inline">Voltar</span>
+        </button>
+      }
+
+      <h1 class="min-w-0 flex-1 truncate text-base font-semibold tracking-tight sm:text-lg">{{ pageTitle() }}</h1>
 
       @if (isPatient()) {
         <app-health-entry-modal />
@@ -58,14 +57,14 @@
       <button
         type="button"
         (click)="logout()"
-        class="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+        class="inline-flex h-9 shrink-0 items-center justify-center rounded-md border border-input bg-background px-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
       >
         Sair
       </button>
     </header>
 
     <!-- Content -->
-    <main class="flex-1 overflow-y-auto p-6">
+    <main class="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6">
       <router-outlet />
     </main>
   </div>

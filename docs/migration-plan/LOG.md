@@ -327,6 +327,275 @@ cd /vitality-control/frontend && npm run build
 
 ---
 
+## Sessão 2 — Receituário (change OpenSpec `prescription-book`)
+
+**Data:** 28/09/2026
+**Estado:** concluída (37/37 tasks)
+
+### Pontos de volta registrados (antes de qualquer mudança destrutiva)
+- Branch de trabalho: `feature/prescription-book` (baseline em `develop`, HEAD `e43c86b`).
+- Tag do baseline: `rx-pre-prescription-book`.
+- Dump do banco de dev (Neon, via túnel local `127.0.0.1:5433`):
+  `~/backups/vitality-control-antes-rx-20260928-183928.sql` (94 KB, 19 tabelas,
+  inclui as 4 linhas de `public.medications`).
+- `pg_dump` 18.6 instalado via PGDG — o client 15 do Debian 12 é recusado pelo
+  servidor 18.6 ("server version mismatch").
+- Script reverso da migration: `~/backups/rx-rollback.sql` (gerado com
+  `prisma migrate diff` entre o banco e o novo datamodel).
+- Convenção: uma tag `rx-grupo-<n>` ao fim de cada grupo de tarefas (0 a 6).
+
+### Estado do banco antes da migration
+- Tabelas em `public`: `users`, `patient_doctors`, `health_records`, `sub_items`,
+  `medications`, `vaccines`, `exam_types`, `shared_data`, `vital_scores`.
+- `medications` tem 4 linhas (Levotiroxina, Ciprofibrato, Enalapril, Artovastatina)
+  do usuário `5xPUEqvUp5vpU2AZ4339` — serão descartadas por decisão de produto.
+- `public._prisma_migrations` existe e contém `20260915191853_init` e
+  `20260915192138_preserve_legacy_ids_text`, ambas finalizadas. Portanto a
+  migration nova é incremental (`rx_prescription_book`), e não um baseline.
+- O papel `neondb_owner` não tem `public` no `search_path`: consultas por `psql`
+  precisam de `public.<tabela>` qualificado, senão o erro é enganoso
+  ("relation does not exist").
+
+### Sessão 2 — grupo 1: modelo de dados aplicado
+
+- Migration `20260928195322_rx_prescription_book` aplicada com `migrate deploy`
+  (dump conferido antes; `migrate status` reporta "Database schema is up to date").
+- **Dados descartados:** as 4 linhas de `medications` (Levotiroxina, Ciprofibrato,
+  Enalapril, Artovastatina) do usuário `5xPUEqvUp5vpU2AZ4339`. Decisão de produto,
+  não limitação técnica — o backfill exigiria inventar uma receita fictícia sem PDF.
+- O SQL gerado por `prisma migrate dev` foi reescrito antes de aplicar: ele tentava
+  `ADD COLUMN prescription_id TEXT NOT NULL` em tabela com dados, o que é
+  inaplicável. A versão final faz `DROP TABLE medications` + recria as três
+  tabelas na ordem das dependências.
+- Novo modelo:
+  - `prescriptions` — 1 PDF por receita (`file_stored_name` / `file_display_name` /
+    `file_mime_type` / `file_size`), `patient_id`, `doctor_id` (nulo quando o
+    paciente registra), `uploaded_by_id`, `status` (`ATIVA | ENCERRADA`).
+  - `medications` — `prescription_id` obrigatório, `continuous_use` (uso contínuo
+    fica no item, não no documento) e `prescribed_by_id` (nulo = lançado pelo
+    próprio paciente, é o que trava a edição pelo paciente).
+  - `medication_schedules` — `time` como `String` "HH:mm" (horário de parede, sem
+    data; ordenação lexicográfica = cronológica) com
+    `@@unique([medicationId, time])` como garantia no banco.
+
+### Complemento: grupos 2 a 6 (backend, frontend e validação)
+- Grupos 2 e 3 (backend) foram commitados juntos em `efa272d`, com tag
+  `rx-grupo-3`; o grupo 4 e 5 (frontend) em `d0b1c52`, com tag `rx-grupo-5`.
+  Não existe tag `rx-grupo-2`: o tag do grupo 3 cobre os dois.
+- `PatientAccessService` (módulo global `CommonModule`) concentra a regra de
+  vínculo médico/paciente, reaproveitada por `VitalsService.pressureForPatient`.
+- Uploads: `multer` em disco, PDF obrigatório, 10 MB, MIME + extensão `.pdf`,
+  nome interno UUID; `file_stored_name` e caminho interno nunca saem da API
+  (conferido em todos os endpoints de leitura) e o download exige Bearer token.
+- Frontend: `PrescriptionsService` com signals (`prescriptions`,
+  `activeMedications`, `loading`, `error`) e `reload()`, o que permite ao widget
+  do dashboard refletir a edição de horários sem recarregar a página. O download
+  usa `HttpClient` com `responseType: 'blob'`, já que o endpoint exige token.
+- Widget `active-medications` substitui `medication-tracker` (removido) e mostra
+  nome, dosagem, frequência e horários ordenados, com estado vazio orientando a
+  registrar receita. Telas: `pages/receituario` (paciente) e
+  `pages/medico/receituario` (seletor de paciente reaproveitado do padrão de
+  pressão arterial). Rota antiga `/medicamentos` virou redirect para
+  `/receituario`; o menu deixou de ter a entrada "Medicamentos".
+- Validação: `npm run build -w backend` e `npm run build -w frontend` limpos;
+  fluxos exercitados via `curl` no backend e através do proxy `:4300`. Revisados
+  o download pelo paciente, o 403 em edição/exclusão de item prescrito, o
+  paciente adicionando horário em item prescrito, o filtro de ativos ignorando
+  receita `ENCERRADA` e a ausência de "medicamento sem horário" no widget.
+- Dados de teste removidos do ambiente: 7 receitas, 3 arquivos em
+  `backend/uploads/receitas`, os usuários `test-medico` / `test-paciente` /
+  `test-paciente2` e os 2 vínculos criados para os testes. As 4
+  `prescriptions` do dump anterior eram apenas os 4 medicamentos legados já
+  descartados, então não há receita real a preservar.
+
+### Bloqueios
+- Nenhum.
+
+### Próximos passos
+- [ ] `npm run prisma:deploy` no ambiente de produção e carga inicial opcional.
+- [ ] Reavaliar o `LOG.md` quando houver dados reais de prescrição.
+
+---
+
+## Sessão 3 — Receituário: formulário único (change OpenSpec `prescription-registration-form`)
+
+**Data:** 29/09/2026
+**Estado:** concluída
+
+### Contexto
+O cadastro de receita exigia PDF e era feito em dois passos (receita com PDF, depois
+medicamentos em um modal separado). O usuário apontou que o formulário não tinha
+dose, frequência, duração nem horários. Decidido: PDF vira opcional e o cadastro
+passa a ser um único formulário, igual para paciente e médico.
+
+### O que foi feito
+- Schema: metadados de arquivo nuláveis, `uploadedById` → `createdById` e
+  `Medication.durationDays Int?`. Migration
+  `20260929122419_prescription_registration_form` aplicada no dev.
+- Backend: `medications` chega como texto JSON no multipart e é validado item a
+  item no serviço (`@Transform` + `@ValidateNested` na mesma propriedade quebra a
+  validação aninhada com `whitelist`). Receita, medicamentos e horários entram em
+  uma única escrita aninhada do Prisma.
+- `CleanUploadOnErrorInterceptor` remove o PDF gravado pelo multer quando a
+  requisição falha (DTO inválido, vínculo ausente, erro de banco) — o
+  `create` do serviço só limpava em falha de banco.
+- Frontend: `frontend/src/app/shared/widgets/prescription-form.ts` (grupos
+  repetíveis de medicamento, horários, duração, uso contínuo e PDF opcional),
+  usado no modal "Nova receita" do paciente e do médico e no acréscimo posterior
+  de medicamento (`mode="append"`). Histórico e widget de ativos passaram a
+  mostrar a duração e a esconder "Baixar PDF" quando `hasFile` é falso.
+- Duração é apenas informativo: não há expiração automática, ativo continua
+  sendo receita `ATIVA` + `continuousUse`.
+
+### Validação
+- `npm run build -w backend` e `npm run build -w frontend` sem erro; bundle
+  servido pelo dev server conferido.
+- API: cadastro sem PDF (201, `hasFile: false`), com PDF (201, `hasFile: true`),
+  médico vinculado (201, itens como prescritos) e médico sem vínculo (403).
+  Recusas em 400: lista vazia, sem nome, sem horário, horário inválido ou
+  duplicado, duração 0 ou 3651, frequência ausente. Limite 3650 aceito.
+- Órfãos: 403, 400 e falha de escrita deixam o diretório `uploads/receitas` com a
+  mesma contagem de arquivos; o caminho válido soma exatamente 1.
+- Dados de teste removidos: 13 receitas, 9 medicamentos, 11 horários, 1 vínculo,
+  6 usuários `rx-*`/`test-*` e 7 PDFs. `uploads/receitas` vazio.
+
+### Bloqueios
+- Nenhum.
+
+### Próximos passos
+- [ ] `npm run prisma:deploy` no ambiente de produção.
+- [ ] Avaliar expiração automática por `durationDays` (fora de escopo: hoje é
+      apenas informativo).
+
+---
+
+## Sessão 4 — Painel e ficha do paciente (change OpenSpec `doctor-patient-panel`)
+
+**Data:** 29/09/2026
+**Estado:** concluída
+
+### O que foi feito
+- Schema: `ClinicalNote` (autor obrigatório com `Restrict`, cascade só do
+  paciente), `PatientAuditEvent` (enum `PatientAuditAction`) e `createdAt` em
+  `PatientDoctor`. Migration `20260929144204_doctor_patient_panel` aplicada.
+- Autorização em `PatientAccessService`: `assertCanReadChart` (leitura ampla com
+  registro de `CHART_VIEWED`, `record: false` para leituras parciais) e
+  `assertPatientExists` exigindo papel `PACIENTE` no alvo.
+- Módulo `doctor-panel` sob `/api/v1/doctor`: lista de pacientes
+  (`scope=mine|all`, `search`, `pendingOnly`), ficha `/patients/:id/summary`,
+  `/patients/:id/links`, `/patients/:id/transfer`, anotações (CRUD) e
+  `/audit-events`. Na lista, "última consulta" é a emissão mais recente de
+  receita do paciente, por qualquer médico.
+- Vínculo: idempotente ao adicionar; assunção remove os vínculos de outros
+  médicos, mantém os de administrador, registra `LINK_ADDED`/`LINK_REMOVED`/
+  `PATIENT_TRANSFERRED` e não toca em `Prescription.doctorId`. Edição de usuário
+  pelo admin passou a emitir os mesmos eventos.
+- Frontend: `roleGuard` nas rotas `/medico/*`, `Meus Pacientes` como primeira
+  entrada do menu, `/medico` redirecionando para o painel, páginas
+  `pacientes.ts` e `paciente-ficha.ts`, diálogo `patient-link-dialog.ts` com as
+  três ações e `doctor-panel.service.ts` + `models/doctor-panel.ts`. Os seletores
+  de `receituario.ts` e `pressao-arterial.ts` agora usam o serviço do painel e
+  marcam "· seu" nos pacientes vinculados.
+- ADR-007 registrado em `docs/migration-plan/README.md`.
+
+### Evidências
+- Matriz de API (Swagger `http://localhost:5000/api`): vínculo duplicado não
+  duplica nem gera evento; assunção remove os outros médicos e preserva o
+  vínculo de administrador; médico sem vínculo lê a ficha (200) e não escreve
+  receita (403); paciente em rota de médico (403), em ficha alheia (403) e na
+  própria (200) sem gerar `CHART_VIEWED`; trilha de auditoria: admin e o próprio
+  paciente listam, médico recebe 403; anotação: autor edita, outro médico e o
+  admin recebem 403, admin apaga, e a nota de B continua na ficha de A após a
+  assunção com a autoria original; `PATCH /users/:id` gera `LINK_ADDED`/
+  `LINK_REMOVED` com ator admin; a ficha não devolve `fileStoredName`.
+- `npm run build -w backend` e `npm run build -w frontend` sem erro.
+- Fluxo no dev server (`http://localhost:4300`): painel vazio → busca de paciente
+  sem vínculo → apenas visualizar → assumir → paciente na lista → anotação
+  registrada e visível na ficha → trilha com `CHART_VIEWED` e
+  `PATIENT_TRANSFERRED`.
+- Dados de teste removidos: 3 usuários `tmp.*`, 1 vínculo, 4 anotações, 1
+  receita com "Losartana 50mg" e 33 eventos de auditoria. Base sem registros de
+  teste em `patient_doctors`, `clinical_notes` e `patient_audit_events`.
+- Correções de 30/09 (mesma change): a rota `medico` tinha `redirectTo` com
+  `canActivate`, inválido no Angular 21 (`NG04014`), o que derrubava o Router e
+  deixava a tela de login em branco; e `listPatients` mantinha o filtro de
+  vínculo mesmo com `search`, o que impedia "Incluir paciente" de achar
+  qualquer paciente, vinculado ou não. Busca agora alcança todos os pacientes
+  (`onlyMine = scope === 'mine' && !search`). Evidência: `scope=mine` sem busca
+  segue devolvendo só os vinculados; `scope=mine&search=joao` e
+  `scope=mine&search=0000000` devolvem o paciente não vinculado.
+- Período ajustável na ficha: `GET /doctor/patients/:id/summary` aceita
+  `?from=&to=` (`yyyy-MM-dd`), com 90 dias encerrando hoje como padrão e
+  comparação sempre contra o período anterior do mesmo tamanho. Rejeita data
+  inicial posterior à final, data inicial no dia atual, data final futura e
+  intervalo acima de 365 dias (`PatientSummaryQueryDto` + `resolvePeriod`).
+  No front: botão "Período" no topo da ficha abrindo o novo widget
+  `shared/widgets/period-picker-dialog.ts` (calendários de início e fim, mesmas
+  regras antes do request) e o card de sinais passou a exibir o intervalo em vez
+  de "últimos N dias". Requisito registrado em `doctor-panel` (delta e spec
+  vigente). Evidência: padrão devolve `windowDays 90` (2026-07-03 a 2026-09-30);
+  `from=2026-09-01&to=2026-09-29` devolve `windowDays 29`; cada regra retorna
+  400 com a mensagem correspondente; builds de backend e frontend sem erro.
+
+### Bloqueios
+- Nenhum.
+
+### Próximos passos
+- [ ] `npm run prisma:deploy` no ambiente de produção.
+- [ ] Avaliar expiração automática por `durationDays` (fora de escopo: hoje é
+      apenas informativo).
+
+---
+
+## Sessão 5 — Responsividade e navegabilidade (change OpenSpec `responsive-navigation`)
+
+**Data:** 30/09/2026
+**Estado:** em andamento (implementado; falta a conferência visual no aparelho)
+
+### O que foi feito
+- **Menu em duas formas, uma lista só**: `layout/nav-panel.ts` concentra logo, entradas e cartão do
+  usuário; `shared/widgets/nav-links.ts` renderiza as entradas. A sidebar fixa continua
+  `hidden md:flex` e o drawer (`fixed`, `md:hidden`, overlay, botão de fechar) abre pelo botão
+  do header. A constante `MENU` de `layout.ts` não foi duplicada.
+- **Esc do drawer não fecha dialog por cima**: o `HostListener` de `Esc` em `LayoutComponent`
+  ignora o evento quando existe `[role="dialog"]` na tela.
+- **Voltar no header**: `core/back.service.ts` conta `NavigationEnd` (`depth`) e usa
+  `Location.back()`; com `depth === 0` (acesso direto por URL, link copiado, aba nova) ele vai
+  para o `data.backTo` da rota, que é o piso declarado pela própria tela. O botão aparece só onde
+  há `backTo`: ficha do paciente, detalhe de exame e `/admin/indices`.
+- **`withInMemoryScrolling`** com `scrollPositionRestoration` e `anchorScrolling`: voltar
+  devolve a lista na posição em que estava.
+- **Rolagem horizontal contida**: `<main>` com `min-w-0` e `overflow-x-hidden`; as 7 tabelas sem
+  envelope ganharam `overflow-x-auto` e a de glicemia trocou `overflow-hidden` por
+  `overflow-x-auto`. O relatório A4 (`w-[794px]`) já tinha rolagem local e ficou como está.
+- **Gráfico dentro da largura do contêiner**: `LineChartComponent` passou a observar o próprio
+  contêiner com `ResizeObserver` (redimensiona ao abrir/fechar o drawer, trocar de coluna ou
+  girar o aparelho, não só ao mudar a janela), e o `div` do canvas ganhou
+  `min-w-0 overflow-hidden`, com `max-w-full` no canvas. Os quatro containers ganharam `min-w-0`.
+- Corrigido de passagem: `pageTitle` do header lia `route.root.firstChild`, que é a rota do próprio
+  layout e nunca tem `data` — o título ficava sempre "Central de Vitalidade". Agora lê
+  `route.firstChild`, do mesmo sinal que sai o `backTo`.
+
+### Evidências
+- `npm run build -w frontend` sem erro; bundle de produção confirma `min-w-0 overflow-hidden` e
+  `max-w-full` no chart, `min-w-0` nos quatro containers e `ResizeObserver` no chart.
+- Dev server: `main.js` servido com `Abrir menu`, `Voltar`, `backTo`, `drawerOpen`,
+  `app-nav-panel` e `scrollPositionRestoration`.
+- Varredura: nenhuma tela com `<table app-table>` ficou sem `overflow-x-auto`; nenhum `w-[...]`
+  fixo fora dos relatórios; nenhuma célula de tabela com `whitespace-nowrap`.
+
+### Bloqueios
+- Nenhum de código; falta a conferência visual no aparelho (tasks 5.2 a 5.4 da change), que não é
+  possível fazer deste ambiente.
+
+### Próximos passos
+- [ ] Conferir no dev server em 360x800, 390x844 e 1280x800: drawer, gráfico, tabela e "Voltar"
+      com e sem histórico.
+- [ ] `/opsx-archive` das changes `responsive-navigation`, `doctor-patient-panel`,
+      `prescription-book` e `prescription-registration-form` (todas com tasks concluídas).
+
+---
+
 ## Modelo de entrada para a próxima sessão
 
 ```

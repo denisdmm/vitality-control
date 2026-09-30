@@ -206,26 +206,15 @@ async function importHealthRecords(perUser: Record<string, any>) {
   console.log(`  ✔ health_records (${hr}) + sub_items (${sub})`);
 }
 
-async function importMedications(perUser: Record<string, any>) {
-  let n = 0;
-  for (const [uid, entry] of Object.entries(perUser)) {
-    for (const m of entry.medications || []) {
-      const mf = flatFields(m.fields);
-      await prisma.medication.upsert({
-        where: { id: docId(m) },
-        update: {},
-        create: {
-          id: docId(m),
-          userId: uid,
-          name: String(mf.name ?? ''),
-          dosage: String(mf.dosage ?? ''),
-          frequency: String(mf.frequency ?? ''),
-        },
-      });
-      n++;
-    }
-  }
-  console.log(`  ✔ medications (${n})`);
+// Receituario: todo medicamento pertence a uma receita com PDF. O legado nao tem
+// receita nem arquivo, entao a importacao de medications foi removida de proposito
+// (ver openspec/changes/prescription-book e docs/migration-plan/LOG.md).
+async function skipLegacyMedications(perUser: Record<string, any>) {
+  const total = Object.values(perUser).reduce(
+    (sum, entry: any) => sum + (entry.medications?.length ?? 0),
+    0,
+  );
+  console.log(`  - medications legadas ignoradas (${total}): sem receita e sem PDF`);
 }
 
 async function importVaccines(perUser: Record<string, any>) {
@@ -344,7 +333,7 @@ async function main() {
   await importSharedData(sharedData);
   await importExamTypes(exams);
   await importHealthRecords(perUser);
-  await importMedications(perUser);
+  await skipLegacyMedications(perUser);
   await importVaccines(perUser);
   await importPatientDoctors(accounts);
   await importVitalScores(data);
