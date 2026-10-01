@@ -1,32 +1,70 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+# Project context — injected into every artifact prompt.
+context: |
+  Project: Vitality Control (Sistema de Controle e Acompanhamento de Saúde )
+  Monorepo (npm workspaces) 
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+- Backend: NestJS 10 + Prisma 5 (`backend/`), prefixo global `/api/v1`, Swagger em `/api`, porta 5000
+- Frontend: Angular 21 standalone + signals + Tailwind CSS 4 (`frontend/`), dev server na 4300 com proxy de `/api`
+- Persistência: PostgreSQL 16 (Neon em dev/prod), acesso somente via Prisma Client
+- Auth: JWT access token via Passport (`@nestjs/jwt`), senha com `bcryptjs`, roles `PACIENTE` / `MEDICO` / `ADMINISTRADOR`
+- Migração de dados: scripts em `backend/scripts/` (`firestore-export.mjs`, `firestore-to-postgres.ts`)
 
-# Per-operation guidance (optional)
-# Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+
+  Code navigation (Graphify):
+  - Local AST knowledge graph at `graphify-out/` (`graph.json`, `GRAPH_REPORT.md`) — gitignored, regenerated on Dev Container post-create or `graphify update .`
+  - Prefer `graphify path "A" "B"`, `graphify explain "X"` or `graphify query "..."` over broad grep
+    when tracing impact across entities, services and Angular modules
+  - `GRAPH_REPORT.md` lists god nodes and communities — useful to spot the layers a change touches
+  - The graph is AST-only and refreshed by `graphify update .` (git hook runs it on commit; do not commit `graphify-out/`)
+
+  Domain (pt-BR terms — keep names consistent):
+  - Operação, Pedido, Missão, Trecho, Esquadrão Aéreo, Aeródromo, Estrutura C2
+  - Distribuição de Esforço Aéreo, Organização Militar, Bimestre Operação
+  - Core flows: cadastros → pedidos → missões → acompanhamento/relatórios
+
+  Testing:
+  - Backend: JUnit 5 (incl. `junit-jupiter-params`), Mockito, ArchUnit
+  - Frontend: Jest
+  - e2e Protractor suite exists in the repo but is deprecated/not maintained and not run in CI — do NOT propose or require Protractor/e2e tasks in tasks.md; rely on JUnit/Jest coverage plus manual QA notes instead
+  - For backend service logic, add a pure unit test (`*ServiceTest`, Mockito-only, no `@SpringBootTest`) alongside the existing `*IntTest` Spring Boot integration test; unit tests are not a substitute for integration coverage of repository/DB behavior, they complement it
+  - Backend unit test conventions (mandatory for new/modified `*ServiceTest`):
+    - Wire collaborators with `@Mock` and the class under test with `@InjectMocks` — never manual constructor wiring; initialize with `MockitoAnnotations.openMocks(this)` in `@BeforeEach` (as the existing `*ServiceTest` classes do) or `@ExtendWith(MockitoExtension.class)`
+    - Name every test `givenSomething_whenSomething_thenSomething()` (e.g. `givenTrechoSemAtribuicao_whenSave_thenDeveLancarBadRequest()`); keep the given/when/then segments in the repo's existing pt-BR/English mix, but always keep the three-part `given_when_then` shape
+    - Group tests that exercise the same method (or the same scenario family) in a `@Nested` inner class named after that method, e.g. `@Nested class save { /* tests here */ }`
+    - Use `@ParameterizedTest` instead of copy-pasted tests whenever the same behavior is verified over multiple inputs: `@EnumSource` for enums (cover every relevant constant), `@ValueSource`/`@CsvSource` for scalar variations, `@MethodSource` for entity/builder-based cases
+  - Build test entities/fixtures (unit and integration tests alike) using the builder classes in `src/test/java/br/ccasj/spcoa/builders/`; add a new `XxxBuilder` (same package, same conventions: `Faker`-seeded constructor, fluent `withX(...)`, `build()` and `build(EntityManager)`) when one doesn't exist yet for an entity under test
+  - `DataBuilder` is deprecated — do NOT use it in new or modified tests; only the dedicated builders above are acceptable for new test code
+  - Preserve backwards compatibility for public REST APIs and persisted contracts
+
+  Language: write user-facing and domain text in pt-BR; keep code identifiers and technical design in the repo’s existing language mix.
+
+# Per-artifact rules — applied only to the matching artifact.
+rules:
+  proposal:
+    - State the operational problem in SPCOA domain terms (pedido, missão, operação, etc.)
+    - List impacted layers (domain, API, UI, Liquibase, Keycloak/integrations) under Impact
+    - Mark breaking API or DB changes with BREAKING
+    - Include a short rollback / revert approach when schema or auth changes
+    - Check openspec/specs/ before naming new or modified capabilities
+  specs:
+    - Use Given/When/Then scenarios
+    - Prefer pt-BR for requirement narratives; keep capability ids kebab-case in English
+    - Reference existing entities/resources before inventing new ones
+    - Cover authorization (Keycloak roles/authorities) when access control changes
+  design:
+    - Map changes to JHipster layers (entity, repository, service, resource, Angular module)
+    - Call out Liquibase changelog needs and Keycloak/MinIO/external API impacts
+    - Use sequence or flow notes for multi-step operational workflows
+    - Prefer extending existing patterns over new frameworks or major version upgrades
+    - Assess blast radius with the Graphify graph (`graphify path`/`explain`, `GRAPH_REPORT.md`)
+      before introducing new modules or refactoring shared entities
+  tasks:
+    - Split into backend / frontend / DB / tests when applicable
+    - Keep tasks small (roughly ≤ 2 hours) and checkbox-friendly
+    - Include Liquibase, i18n (pt-BR), and test updates when behavior changes
+    - Order tasks so domain/API land before UI that depends on them
+    - Never require Protractor/e2e tasks (see Testing notes above); manual QA steps are non-blocking notes, not checklist tasks
+    - When a backend service changes, include a task to add/update a `*ServiceTest` unit test (Mockito-only with `@Mock`/`@InjectMocks`, using the `src/test/java/br/ccasj/spcoa/builders/` builders — never `DataBuilder`) in addition to the `*IntTest` coverage; add a new builder class as its own task when the entity has none yet
+    - Phrase unit-test tasks with the expected structure — `given_when_then` test names, a `@Nested` class per method under test, and `@ParameterizedTest` (`@EnumSource`, `@ValueSource`/`@CsvSource`, `@MethodSource`) for enum/multi-input scenarios

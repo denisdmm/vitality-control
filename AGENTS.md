@@ -61,6 +61,17 @@ Pergunte somente quando a decisão alterar regra de negócio, contrato de API, b
 - Prefira nomes claros a comentarios longos.
 - Use ASCII salvo quando o arquivo ja usar acentos ou houver motivo claro.
 
+## Formato das Descrições
+
+Sempre partir do corpo do template correspondente ao tipo da issue
+Remover os comentários <!-- ... --> do template: são orientação de preenchimento, não conteúdo da issue
+Remover a seção "Classificação" e aplicar os labels pelo parâmetro labels do create_issue (tipo + Backlog), em vez de depender das quick actions /label
+Não definir milestone nem label de sprint
+Manter português (time é brasileiro)
+Incluir contexto do código (arquivos, classes, métodos, linhas) sempre que relevante
+Para bugs, preencher a seção "Evidências" com stack trace ou log quando disponível
+Preencher "Fora do escopo" com o que não deve ser alterado no ticket
+
 ## Testes e validacao
 
 - Backend nao possui suite de testes configurada (sem jest no `backend/package.json`) nem lint. Valide por build (`npm run build -w backend`) e, quando houver, por chamada ao endpoint no Swagger (`http://localhost:5000/api`).
