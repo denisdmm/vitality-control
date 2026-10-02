@@ -10,14 +10,14 @@
 
   "containerEnv": {
     "DEV_CONTAINER": "true",
-    "POSTGRES_HOST": "PS_vitality-control",
+    "POSTGRES_HOST": "postgres-vitality",
     "POSTGRES_PORT": "5432",
     "POSTGRES_DB": "vitalitydb",
     "POSTGRES_USER": "appuser",
     "POSTGRES_PASSWORD": "apppassword"
   },
 
-  "forwardPorts": [4300, 5432, 5434],
+  "forwardPorts": [4300, 5434],
 
   "customizations": {
     "vscode": {
@@ -26,7 +26,10 @@
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
         "christian-kohler.npm-intellisense",
-        "ms-ossdata.vscode-postgresql"
+        "ms-ossdata.vscode-postgresql",
+        "ms-azuretools.vscode-docker",
+        "ms-vscode-remote.remote-containers",
+        "opencodeai.opencode"
       ],
 
       "settings": {
@@ -34,7 +37,25 @@
         "editor.defaultFormatter": "esbenp.prettier-vscode"
       }
     }
-  }
+  },
+  "features": {
+    "ghcr.io/stuartleeks/dev-container-features/shell-history:0": {},
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "dockerDashComposeVersion": "none"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "12.22.12",
+      "nodeGypDependencies": "false",
+      "nvmVersion": "0.40.3"
+    },
+    // Bun para executar o opencode-ai
+    "ghcr.io/devcontainers-extra/features/bun:1": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12.4"
+    }
+  },
 
-  // "postCreateCommand": "npm ci && npm run prisma:generate -w backend"
+  "postCreateCommand": "bash .devcontainer/post-create.sh"
 }

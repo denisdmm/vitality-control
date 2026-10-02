@@ -60,6 +60,71 @@ npm run build
 
 Os artefatos ficam em `frontend/dist/`.
 
+## Publicação
+
+### Backend no Render
+
+O backend roda como Web Service de runtime Node, sem Dockerfile. Crie o serviço
+em <https://render.com> conectado ao repositório `denisdmm/vitality-control`
+(branch `develop`):
+
+| Campo | Valor |
+| --- | --- |
+| Name | `vitality-api` |
+| Root Directory | `backend` |
+| Runtime | Node (native, sem Docker) |
+| Build Command | `npm ci && npm run prisma:generate && npm run build` |
+| Start Command | `npm run prisma:deploy && npm run start:prod` |
+| Health Check Path | `/api` (Swagger) |
+
+Variáveis de ambiente (painel do serviço):
+
+```
+DATABASE_URL=postgresql://neondb_owner:<senha>@ep-<id>-pooler.<region>.aws.neon.tech/neondb?sslmode=require&connect_timeout=15
+JWT_SECRET=<openssl rand -hex 32>
+JWT_EXPIRES_IN=1d
+CORS_ORIGIN=https://<host do frontend>
+NODE_VERSION=22
+UPLOADS_DIR=/tmp
+```
+
+Regras que quebram o deploy se não forem respeitadas:
+
+- **Sem aspas** nos valores das variáveis. `DATABASE_URL` colada com `"` vira uma
+  string inválida para o Prisma.
+- **Não use a URL do túnel local** (`127.0.0.1:5433`) no Render: copie a URL do
+  host real do Neon (`POSTGRES_URL` no `backend/.env`, ou a linha comentada com
+  o host sem pooler).
+- **Não defina `NODE_ENV=production`** nas variáveis de ambiente: com ela, o
+  `npm ci` do build pula `devDependencies`, onde ficam `prisma`, `@nestjs/cli` e
+  `ts-node`.
+- **As migrations são aplicadas no start** (`prisma:deploy && start:prod`),
+  porque o `PrismaService` só faz `$connect()` e não migra o banco. O comando é
+  idempotente; rodar em todo start é intencional.
+- O `P1001 Can't reach database server` logo após o primeiro deploy costuma ser o
+  compute do Neon suspenso: force um resume no console do Neon e redeploy.
+- `P1012 Environment variable not found: DATABASE_URL` significa variável ausente
+  no serviço; `P1000` é senha inválida.
+- **Não existe `/api/v1/health`** ainda (entra na change
+  `migrate-backend-to-vps-runtime`); use `/api` como health check.
+
+Limitações conhecidas no Render: o plano free hiberna após 15 min sem tráfego
+(primeira requisição demora), e `UPLOADS_DIR=/tmp` faz os PDFs de receita se
+perderem a cada restart.
+
+### Frontend na Vercel
+
+O build do frontend lê a URL da API de env (`frontend/scripts/write-environment.mjs`
+gera `frontend/src/environments/environment.ts` a partir de `API_BASE_URL`, com
+default `/api/v1` para o proxy local). No projeto Vercel:
+
+```
+API_BASE_URL=https://<host do backend>/api/v1
+```
+
+Sem essa variável o frontend assume a API no mesmo domínio e recebe `404`, já que
+o projeto Vercel publica apenas os arquivos estáticos do Angular.
+
 ## Documentação
 
 - Plano de migração e histórico de sessões: `docs/migration-plan/LOG.md`

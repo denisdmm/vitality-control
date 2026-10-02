@@ -1,6 +1,7 @@
 IA-model-opencode.wiki
 
 node_modules/
+.env
 
 # PDFs de receita gravados pelo upload local
 backend/uploads/
